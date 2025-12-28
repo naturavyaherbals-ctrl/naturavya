@@ -4,7 +4,6 @@ import type React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useState, Suspense } from "react"
-import { logoutAdmin } from "./actions"
 import {
   LayoutDashboard,
   Package,
