@@ -1,29 +1,18 @@
-export const dynamic = "force-dynamic";
+export const dynamic = "force-dynamic"
 
 import { notFound } from "next/navigation"
-import { Navbar } from "@/components/navbar"
-import { Footer } from "@/components/footer"
-import { WhatsAppButton } from "@/components/whatsapp-button"
-import { ProductCard } from "@/components/product-card"
-import { Leaf, Filter, SlidersHorizontal } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import Navbar from "@/components/navbar"
+import Footer from "@/components/footer"
+import WhatsAppButton from "@/components/whatsapp-button"
+import ProductCard from "@/components/product-card"
 import Link from "next/link"
 import { getAllProducts } from "@/lib/products"
 
 /* Category definitions */
 const categories = [
-  {
-    title: "Men's Wellness",
-    slug: "mens-wellness",
-  },
-  {
-    title: "Women's Wellness",
-    slug: "womens-wellness",
-  },
-  {
-    title: "General Health",
-    slug: "general-health",
-  },
+  { title: "Men's Wellness", slug: "mens-wellness" },
+  { title: "Women's Wellness", slug: "womens-wellness" },
+  { title: "General Health", slug: "general-health" },
 ]
 
 export default async function CategoryPage({
@@ -39,6 +28,10 @@ export default async function CategoryPage({
     notFound()
   }
 
+  // ✅ FETCH PRODUCTS (THIS WAS MISSING)
+  const products = await getAllProducts()
+
+  // ✅ FILTER AFTER FETCH
   const filteredProducts = products.filter(
     (product) => product.category === category.slug
   )
@@ -84,6 +77,10 @@ export default async function CategoryPage({
 
       <Footer />
       <WhatsAppButton />
+    </>
+  )
+}
+
     </>
   )
 }
