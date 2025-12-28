@@ -146,15 +146,14 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         <DropdownMenuSeparator />
 
         <DropdownMenuItem
-          className="text-destructive"
-          onClick={async () => {
-            await fetch("/admin/logout", { method: "POST" })
-            window.location.href = "/admin/login"
-          }}
-        >
-          <LogOut className="h-4 w-4 mr-2" />
-          Logout
-        </DropdownMenuItem>
+  className="text-destructive"
+  onClick={async () => {
+    await fetch("/admin/logout", { method: "POST" })
+    window.location.href = "/admin/login"
+  }}
+>
+  Logout
+</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )}
