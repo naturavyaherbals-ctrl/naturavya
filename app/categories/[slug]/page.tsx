@@ -4,7 +4,7 @@ import { notFound } from "next/navigation"
 import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"
 import WhatsAppButton from "@/components/whatsapp-button"
-import ProductCard from "@/components/product-card"
+import { ProductCard } from "@/components/product-card"
 import Link from "next/link"
 import { getAllProducts } from "@/lib/products"
 
