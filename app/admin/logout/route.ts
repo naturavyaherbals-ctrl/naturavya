@@ -8,6 +8,7 @@ export async function POST() {
   response.cookies.set("admin_token", "", {
     path: "/",
     expires: new Date(0),
+    httpOnly: true,
   })
 
   return response
