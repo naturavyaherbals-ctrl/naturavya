@@ -1,7 +1,7 @@
-import { createServerSupabase } from "@/lib/supabase/server"
+import { supabaseServer } from "@/lib/supabase/server"
 
 export async function getAllProducts() {
-  const supabase = createServerSupabase()
+  const supabase = supabaseServer()
   const { data } = await supabase
     .from("products")
     .select("*")
