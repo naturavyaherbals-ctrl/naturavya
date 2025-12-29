@@ -1,5 +1,9 @@
-import handler from "../.open-next/server-functions/default/handler.js";
+import { handleRequest } from "@opennextjs/cloudflare";
 
 export async function onRequest(context) {
-  return handler(context.request, context.env, context);
+  return handleRequest({
+    request: context.request,
+    env: context.env,
+    waitUntil: context.waitUntil,
+  });
 }
