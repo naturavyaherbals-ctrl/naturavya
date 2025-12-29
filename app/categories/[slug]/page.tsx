@@ -1,4 +1,6 @@
-export const dynamic = "force-dynamic"
+"use client";
+
+export const dynamic = "force-dynamic";
 
 import { notFound } from "next/navigation"
 import Navbar from "@/components/navbar"
