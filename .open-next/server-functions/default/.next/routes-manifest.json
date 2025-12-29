@@ -1,0 +1,282 @@
+{
+  "version": 3,
+  "pages404": true,
+  "caseSensitive": false,
+  "basePath": "",
+  "redirects": [
+    {
+      "source": "/:path+/",
+      "destination": "/:path+",
+      "internal": true,
+      "statusCode": 308,
+      "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$"
+    }
+  ],
+  "headers": [],
+  "rewrites": {
+    "beforeFiles": [],
+    "afterFiles": [],
+    "fallback": []
+  },
+  "dynamicRoutes": [
+    {
+      "page": "/admin/products/[id]",
+      "regex": "^/admin/products/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/admin/products/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/categories/[slug]",
+      "regex": "^/categories/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPslug": "nxtPslug"
+      },
+      "namedRegex": "^/categories/(?<nxtPslug>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/products/[slug]",
+      "regex": "^/products/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPslug": "nxtPslug"
+      },
+      "namedRegex": "^/products/(?<nxtPslug>[^/]+?)(?:/)?$"
+    }
+  ],
+  "staticRoutes": [
+    {
+      "page": "/",
+      "regex": "^/(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/(?:/)?$"
+    },
+    {
+      "page": "/_not-found",
+      "regex": "^/_not\\-found(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_not\\-found(?:/)?$"
+    },
+    {
+      "page": "/about",
+      "regex": "^/about(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/about(?:/)?$"
+    },
+    {
+      "page": "/admin",
+      "regex": "^/admin(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin(?:/)?$"
+    },
+    {
+      "page": "/admin/analytics",
+      "regex": "^/admin/analytics(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/analytics(?:/)?$"
+    },
+    {
+      "page": "/admin/categories",
+      "regex": "^/admin/categories(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/categories(?:/)?$"
+    },
+    {
+      "page": "/admin/customers",
+      "regex": "^/admin/customers(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/customers(?:/)?$"
+    },
+    {
+      "page": "/admin/dashboard",
+      "regex": "^/admin/dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/dashboard(?:/)?$"
+    },
+    {
+      "page": "/admin/login",
+      "regex": "^/admin/login(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/login(?:/)?$"
+    },
+    {
+      "page": "/admin/login/analytics",
+      "regex": "^/admin/login/analytics(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/login/analytics(?:/)?$"
+    },
+    {
+      "page": "/admin/login/categories",
+      "regex": "^/admin/login/categories(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/login/categories(?:/)?$"
+    },
+    {
+      "page": "/admin/login/customers",
+      "regex": "^/admin/login/customers(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/login/customers(?:/)?$"
+    },
+    {
+      "page": "/admin/login/dashboard",
+      "regex": "^/admin/login/dashboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/login/dashboard(?:/)?$"
+    },
+    {
+      "page": "/admin/login/orders",
+      "regex": "^/admin/login/orders(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/login/orders(?:/)?$"
+    },
+    {
+      "page": "/admin/login/products",
+      "regex": "^/admin/login/products(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/login/products(?:/)?$"
+    },
+    {
+      "page": "/admin/login/promotions",
+      "regex": "^/admin/login/promotions(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/login/promotions(?:/)?$"
+    },
+    {
+      "page": "/admin/login/reviews",
+      "regex": "^/admin/login/reviews(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/login/reviews(?:/)?$"
+    },
+    {
+      "page": "/admin/login/settings",
+      "regex": "^/admin/login/settings(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/login/settings(?:/)?$"
+    },
+    {
+      "page": "/admin/login/testimonials",
+      "regex": "^/admin/login/testimonials(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/login/testimonials(?:/)?$"
+    },
+    {
+      "page": "/admin/login/website-images",
+      "regex": "^/admin/login/website\\-images(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/login/website\\-images(?:/)?$"
+    },
+    {
+      "page": "/admin/logout",
+      "regex": "^/admin/logout(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/logout(?:/)?$"
+    },
+    {
+      "page": "/admin/orders",
+      "regex": "^/admin/orders(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/orders(?:/)?$"
+    },
+    {
+      "page": "/admin/products",
+      "regex": "^/admin/products(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/products(?:/)?$"
+    },
+    {
+      "page": "/admin/products/new",
+      "regex": "^/admin/products/new(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/products/new(?:/)?$"
+    },
+    {
+      "page": "/admin/promotions",
+      "regex": "^/admin/promotions(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/promotions(?:/)?$"
+    },
+    {
+      "page": "/admin/reviews",
+      "regex": "^/admin/reviews(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/reviews(?:/)?$"
+    },
+    {
+      "page": "/admin/settings",
+      "regex": "^/admin/settings(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/settings(?:/)?$"
+    },
+    {
+      "page": "/admin/testimonials",
+      "regex": "^/admin/testimonials(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/testimonials(?:/)?$"
+    },
+    {
+      "page": "/admin/website-images",
+      "regex": "^/admin/website\\-images(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/admin/website\\-images(?:/)?$"
+    },
+    {
+      "page": "/cart",
+      "regex": "^/cart(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/cart(?:/)?$"
+    },
+    {
+      "page": "/categories",
+      "regex": "^/categories(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/categories(?:/)?$"
+    },
+    {
+      "page": "/checkout",
+      "regex": "^/checkout(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/checkout(?:/)?$"
+    },
+    {
+      "page": "/favicon.ico",
+      "regex": "^/favicon\\.ico(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/favicon\\.ico(?:/)?$"
+    },
+    {
+      "page": "/products",
+      "regex": "^/products(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/products(?:/)?$"
+    },
+    {
+      "page": "/reviews",
+      "regex": "^/reviews(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/reviews(?:/)?$"
+    },
+    {
+      "page": "/testimonials",
+      "regex": "^/testimonials(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/testimonials(?:/)?$"
+    }
+  ],
+  "dataRoutes": [],
+  "rsc": {
+    "header": "rsc",
+    "varyHeader": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
+    "prefetchHeader": "next-router-prefetch",
+    "didPostponeHeader": "x-nextjs-postponed",
+    "contentTypeHeader": "text/x-component",
+    "suffix": ".rsc",
+    "prefetchSuffix": ".prefetch.rsc",
+    "prefetchSegmentHeader": "next-router-segment-prefetch",
+    "prefetchSegmentSuffix": ".segment.rsc",
+    "prefetchSegmentDirSuffix": ".segments"
+  },
+  "rewriteHeaders": {
+    "pathHeader": "x-nextjs-rewritten-path",
+    "queryHeader": "x-nextjs-rewritten-query"
+  }
+}
