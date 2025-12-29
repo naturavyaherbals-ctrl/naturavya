@@ -1,51 +1,43 @@
-"use client";
+export const dynamic = "force-dynamic"
 
-export const dynamic = "force-dynamic";
+import Navbar from "@/components/navbar"
+import Footer from "@/components/footer"
+import { supabaseServer } from "@/lib/supabase/server"
 
-import { useEffect, useState } from "react";
-import Navbar from "@/components/navbar";
-import Footer from "@/components/footer";
-import { supabaseServer } from "@supabase/supabase-js";
+export default async function CategoriesPage() {
+  const supabase = await supabaseServer()
 
-const supabase = supabaseServer(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+  const { data: categories, error } = await supabase
+    .from("categories")
+    .select("*")
+    .order("name")
 
-export default function CategoriesPage() {
-  const [categories, setCategories] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function loadCategories() {
-      const { data } = await supabase.from("categories").select("*");
-      setCategories(data || []);
-      setLoading(false);
-    }
-    loadCategories();
-  }, []);
+  if (error) {
+    console.error("Categories fetch error:", error)
+  }
 
   return (
     <>
       <Navbar />
-      <main className="container mx-auto p-6">
-        <h1 className="text-2xl font-bold mb-4">Categories</h1>
 
-        {loading && <p>Loading...</p>}
+      <main className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold mb-6">Categories</h1>
 
-        {!loading && categories.length === 0 && (
-          <p>No categories found.</p>
-        )}
-
-        <ul className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {categories.map((cat) => (
-            <li key={cat.id} className="border p-3 rounded">
-              {cat.name}
+        <ul className="grid gap-4">
+          {categories?.map((category) => (
+            <li
+              key={category.id}
+              className="p-4 border rounded-lg hover:shadow"
+            >
+              {category.name}
             </li>
           ))}
         </ul>
       </main>
+
       <Footer />
     </>
-  );
+  )
+}
+
 }
