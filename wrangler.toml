@@ -1,6 +1,8 @@
-name = "naturavya"
+name = "naturavya-worker"
 compatibility_date = "2025-01-01"
-
 compatibility_flags = ["nodejs_compat"]
 
-pages_build_output_dir = ".open-next/assets"
+main = ".open-next/_worker.js"
+
+[assets]
+directory = ".open-next/assets"
