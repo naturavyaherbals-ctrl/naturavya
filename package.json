@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npx open-next build",
+    "build": "open-next build",
+    "build:open-next": "open-next-build"
     "start": "next start",
     "lint": "eslint"
   },
