@@ -3,14 +3,10 @@
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 
-export async function loginAdmin() {
+export async function logoutAdmin() {
   const cookieStore = await cookies()
 
-  cookieStore.set("admin_token", "true", {
-    path: "/",          // 🔥 REQUIRED
-    httpOnly: true,
-    sameSite: "lax",
-  })
+  cookieStore.delete("admin_token")
 
-  redirect("/admin")    // 🔥 MUST be /admin
+  redirect("/admin/login")
 }
