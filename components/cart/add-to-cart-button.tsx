@@ -8,6 +8,7 @@ interface AddToCartButtonProps {
   product: {
     id: number
     name: string
+    slug: string
     price: number
     images: string[]
   }
@@ -22,8 +23,9 @@ export function AddToCartButton({ product }: AddToCartButtonProps) {
       className="flex-1 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground"
       onClick={() =>
         addToCart({
-          id: product.id,
+          id: String(product.id),
           name: product.name,
+          slug: product.slug,
           price: product.price,
           image: product.images[0],
           quantity: 1,

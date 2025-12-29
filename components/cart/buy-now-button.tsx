@@ -9,6 +9,7 @@ interface Product {
   id: number
   name: string
   price: number
+  slug: string
   images: string[]
 }
 
@@ -19,8 +20,9 @@ export default function BuyNowButton({ product }: { product: Product }) {
   const handleBuyNow = () => {
     clearCart()
     addToCart({
-      id: product.id,
+      id: String(product.id),
       name: product.name,
+      slug: product.slug,
       price: product.price,
       quantity: 1,
       image: product.images?.[0],

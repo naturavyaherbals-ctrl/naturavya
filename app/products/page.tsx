@@ -6,9 +6,11 @@ import WhatsAppButton from "@/components/whatsapp-button"
 import { products } from "@/lib/products-data"
 import { ProductCard } from "@/components/product-card"
 import { motion } from "framer-motion"
-import { getProductBySlug } from "@/lib/data/products"
+import { getAllProducts } from "@/lib/products"
 
-export default function ProductsPage() {
+export default async function ProductsPage() {
+ const products = await getAllProducts()
+
   return (
     <main>
       <Navbar />

@@ -11,7 +11,7 @@ export async function getAllProducts() {
 }
 
 export async function getProductBySlug(slug: string) {
-  const supabase = createServerSupabase()
+  const supabase = supabaseServer()
   const { data } = await supabase
     .from("products")
     .select("*")
@@ -22,7 +22,7 @@ export async function getProductBySlug(slug: string) {
 }
 
 export async function getProductsByCategory(slug: string) {
-  const supabase = createServerSupabase()
+  const supabase = supabaseServer()
   const { data } = await supabase
     .from("products")
     .select("*")

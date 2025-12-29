@@ -2,8 +2,7 @@ import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"
 import WhatsAppButton from "@/components/whatsapp-button"
 import { CategoryCard } from "@/components/category-card"
-import { getProductBySlug } from "@/lib/data/products"
-
+import { getAllProducts } from "@/lib/products"
 
 const categories = [
   {
@@ -23,7 +22,10 @@ const categories = [
   },
 ]
 
-export default function CategoriesPage() {
+export default async function CategoriesPage() {
+  // ✅ fetch inside async server component
+  const products = await getAllProducts()
+
   return (
     <>
       <Navbar />
@@ -36,9 +38,10 @@ export default function CategoriesPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {categories.map((cat) => (
             <CategoryCard
-              key={cat.slug}
-              category={cat}
-            />
+             key={cat.slug}
+             category={cat}
+           />
+
           ))}
         </div>
       </main>

@@ -4,16 +4,19 @@ import { ShoppingBag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useCart } from "@/lib/cart/cart-context"
 
-type Props = {
-  product: {
-    id: string
-    name: string
-    price: number
-    images: string[]
-  }
+type ProductForCart = {
+  id: number | string
+  slug: string
+  name: string
+  price: number
+  images: string[]
 }
 
-export default function AddToCartButton({ product }: Props) {
+type AddToCartProps = {
+  product: ProductForCart
+}
+
+export default function AddToCartButton({ product }: AddToCartProps) {
   const { addToCart } = useCart()
 
   return (
@@ -22,7 +25,8 @@ export default function AddToCartButton({ product }: Props) {
       className="flex-1 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
       onClick={() =>
         addToCart({
-          id: product.id,
+          id: String(product.id),
+          slug: product.slug,
           name: product.name,
           price: product.price,
           image: product.images[0],

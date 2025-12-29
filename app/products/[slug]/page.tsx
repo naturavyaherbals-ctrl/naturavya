@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { getProductBySlug } from "@/lib/products"
 
-export default async function ProductPage({
+export default async function ProductsPage({
   params,
 }: {
   params: Promise<{ slug: string }>
@@ -48,7 +48,6 @@ export default async function ProductPage({
 
             <div className="flex flex-col sm:flex-row gap-4">
               <AddToCartButton product={product} />
-
               <Link href="/cart" className="flex-1">
                 <Button
                   size="lg"
