@@ -5,9 +5,9 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
-import { getSupabaseClient } from "@supabase/supabase-js";
+import { supabaseServer } from "@supabase/supabase-js";
 
-const supabase = getSupabaseClient(
+const supabase = supabaseServer(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
