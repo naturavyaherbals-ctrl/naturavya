@@ -2,7 +2,7 @@
 import { supabaseServer } from "@/lib/supabase"
 
 export async function saveContact(formData: FormData) {
-  const supabase = supabaseServer()
+  const supabase = await supabaseServer()
   
   await supabase.from("contacts").insert([{
     name: formData.get("name"),
