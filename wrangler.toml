@@ -1,5 +1,4 @@
 name = "naturavya"
-compatibility_date = "2024-11-01"
+compatibility_date = "2024-12-01"
 
-[pages]
-pages_build_output_dir = ".open-next"
+pages_build_output_dir = ".open-next/assets"
