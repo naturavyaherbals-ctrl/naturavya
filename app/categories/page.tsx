@@ -2,56 +2,50 @@
 
 export const dynamic = "force-dynamic";
 
-import Navbar from "@/components/navbar"
-import Footer from "@/components/footer"
-import WhatsAppButton from "@/components/whatsapp-button"
-import { CategoryCard } from "@/components/category-card"
-import { getAllProducts } from "@/lib/products"
+import { useEffect, useState } from "react";
+import Navbar from "@/components/navbar";
+import Footer from "@/components/footer";
+import { createClient } from "@supabase/supabase-js";
 
-const categories = [
-  {
-    title: "Men's Wellness",
-    slug: "mens-wellness",
-    image: "/products/mens-wellness.png",
-  },
-  {
-    title: "Women's Wellness",
-    slug: "womens-wellness",
-    image: "/products/vitality-combo.png",
-  },
-  {
-    title: "General Health",
-    slug: "general-health",
-    image: "/products/shilajit.png",
-  },
-]
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
-export default async function CategoriesPage() {
-  // ✅ fetch inside async server component
-  const products = await getAllProducts()
+export default function CategoriesPage() {
+  const [categories, setCategories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadCategories() {
+      const { data } = await supabase.from("categories").select("*");
+      setCategories(data || []);
+      setLoading(false);
+    }
+    loadCategories();
+  }, []);
 
   return (
     <>
       <Navbar />
+      <main className="container mx-auto p-6">
+        <h1 className="text-2xl font-bold mb-4">Categories</h1>
 
-      <main className="max-w-7xl mx-auto px-4 py-24">
-        <h1 className="text-4xl font-bold mb-12 text-center">
-          Shop by Category
-        </h1>
+        {loading && <p>Loading...</p>}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        {!loading && categories.length === 0 && (
+          <p>No categories found.</p>
+        )}
+
+        <ul className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {categories.map((cat) => (
-            <CategoryCard
-             key={cat.slug}
-             category={cat}
-           />
-
+            <li key={cat.id} className="border p-3 rounded">
+              {cat.name}
+            </li>
           ))}
-        </div>
+        </ul>
       </main>
-
       <Footer />
-      <WhatsAppButton />
     </>
-  )
+  );
 }
