@@ -1,8 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import Navbar from "@/components/navbar"
-import Footer from "@/components/footer"
 import WhatsAppButton from "@/components/whatsapp-button"
 import { ReviewCard } from "@/components/review-card"
 import { reviews } from "@/lib/reviews-data"
@@ -43,7 +41,6 @@ export default function ReviewsPage() {
 
   return (
     <main>
-      <Navbar />
 
       {/* Hero */}
       <section className="pt-32 pb-16 px-4 bg-gradient-to-b from-muted/50 to-background">
@@ -169,8 +166,6 @@ export default function ReviewsPage() {
           )}
         </div>
       </section>
-
-      <Footer />
       <WhatsAppButton />
     </main>
   )

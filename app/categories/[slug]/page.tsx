@@ -1,6 +1,4 @@
 import { notFound } from "next/navigation"
-import Navbar from "@/components/navbar"
-import Footer from "@/components/footer"
 import WhatsAppButton from "@/components/whatsapp-button"
 import { ProductCard } from "@/components/product-card"
 import Link from "next/link"
@@ -36,7 +34,6 @@ export default async function CategoryPage({
 
   return (
     <>
-      <Navbar />
 
       <main className="max-w-7xl mx-auto px-4 py-24">
         <div className="mb-12 text-center">
@@ -72,8 +69,6 @@ export default async function CategoryPage({
           </Link>
         </div>
       </main>
-
-      <Footer />
       <WhatsAppButton />
     </>
   )

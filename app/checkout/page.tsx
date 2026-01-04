@@ -1,14 +1,11 @@
 "use client";
 
 import Link from "next/link"
-import Navbar from "@/components/navbar"
-import Footer from "@/components/footer"
 import { Button } from "@/components/ui/button"
 
 export default function CheckoutPage() {
   return (
     <>
-      <Navbar />
 
       <main className="pt-28 pb-20 px-4">
         <div className="max-w-3xl mx-auto">
@@ -31,8 +28,6 @@ export default function CheckoutPage() {
           </div>
         </div>
       </main>
-
-      <Footer />
     </>
   )
 }

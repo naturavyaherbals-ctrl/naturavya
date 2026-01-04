@@ -1,5 +1,3 @@
-import Navbar from "@/components/navbar"
-import Footer from "@/components/footer"
 import { supabaseServer } from "@/app/lib/supabase/server"
 import Link from "next/link"
 
@@ -18,7 +16,6 @@ export default async function CategoriesPage() {
 
   return (
     <>
-      <Navbar />
 
       <main className="container mx-auto px-4 pt-32 pb-20">
         <h1 className="text-3xl font-bold mb-8">Shop by Category</h1>
@@ -53,8 +50,6 @@ export default async function CategoriesPage() {
             <p className="text-center text-muted-foreground">No categories found.</p>
         )}
       </main>
-
-      <Footer />
     </>
   )
 }

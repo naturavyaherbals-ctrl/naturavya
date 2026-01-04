@@ -1,8 +1,6 @@
 "use client"
 
 import { useRef } from "react"
-import Navbar from "@/components/navbar"
-import Footer from "@/components/footer"
 import WhatsAppButton from "@/components/whatsapp-button"
 import {
   Leaf,
@@ -120,7 +118,6 @@ export default function AboutPage() {
 
   return (
     <main className="overflow-hidden">
-      <Navbar />
 
       {/* HERO */}
       <motion.section
@@ -178,8 +175,6 @@ export default function AboutPage() {
           ))}
         </div>
       </section>
-
-      <Footer />
       <WhatsAppButton />
     </main>
   )

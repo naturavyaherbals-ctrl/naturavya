@@ -1,5 +1,3 @@
-import { Navbar } from "@/components/navbar"
-import { Footer } from "@/components/footer"
 import { WhatsAppButton } from "@/components/whatsapp-button"
 import { TestimonialCard } from "@/components/testimonial-card"
 import { testimonials } from "@/lib/reviews-data"
@@ -17,8 +15,6 @@ export default function TestimonialsPage() {
 
   return (
     <main>
-      <Navbar />
-
       {/* Hero Section */}
       <section className="pt-32 pb-16 px-4 bg-gradient-to-b from-muted/50 to-background relative overflow-hidden">
         <div className="absolute top-20 left-10 w-64 h-64 rounded-full bg-primary/5 blur-3xl" />
@@ -87,8 +83,6 @@ export default function TestimonialsPage() {
           </div>
         </div>
       </section>
-
-      <Footer />
       <WhatsAppButton />
     </main>
   )
