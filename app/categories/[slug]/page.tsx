@@ -29,7 +29,7 @@ export default async function CategoryPage({
 
   // ✅ FILTER AFTER FETCH
   const filteredProducts = products.filter(
-    (product) => product.category === category.slug
+    (product: any) => product.category_slug === category.slug
   )
 
   return (
@@ -54,7 +54,7 @@ export default async function CategoryPage({
           </p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredProducts.map((product) => (
+            {filteredProducts.map((product: any) => (
               <ProductCard key={product.slug} product={product} />
             ))}
           </div>
