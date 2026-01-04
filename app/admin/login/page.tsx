@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { loginAction } from "./action"
+import { loginAction } from "./actions"
 
 export default function AdminLoginPage() {
   const [error, setError] = useState("")
@@ -55,4 +55,5 @@ export default function AdminLoginPage() {
       </div>
     </div>
   )
+
 }
