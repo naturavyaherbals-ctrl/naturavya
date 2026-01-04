@@ -1,12 +1,12 @@
-import "./globals.css"
-import { CartProvider } from "@/app/lib/cart/cart-context"
-import Navbar from "@/components/navbar"
-import Footer from "@/components/footer"
+import './globals.css'
+import { Inter } from 'next/font/google'
+import Navbar from '@/components/Navbar'
+import Footer from '@/components/Footer'
 
-export const metadata = {
-  title: "Naturavya Herbals",
-  description: "Pure Ayurvedic Wellness for India",
-}
+// 1. IMPORT THE PROVIDER (Check your exact path, it might be different)
+import { CartProvider } from '@/context/CartContext' 
+
+const inter = Inter({ subsets: ['latin'] })
 
 export default function RootLayout({
   children,
@@ -15,11 +15,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>
+      <body className={inter.className}>
+        {/* 2. WRAP EVERYTHING INSIDE CARTPROVIDER */}
         <CartProvider>
           <Navbar />
-          {/* Your page content loads here */}
-          {children} 
+          {children}
           <Footer />
         </CartProvider>
       </body>
