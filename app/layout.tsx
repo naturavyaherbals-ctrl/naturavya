@@ -2,7 +2,7 @@ import './globals.css'
 import { Inter } from 'next/font/google'
 
 // 1. IMPORT THE PROVIDER (Check your exact path, it might be different)
-import { CartProvider } from '@/context/CartContext' 
+import { CartProvider } from '@/lib/cart/cart-context'
 
 const inter = Inter({ subsets: ['latin'] })
 
