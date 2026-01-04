@@ -11,14 +11,16 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  return (
-    <html lang="en">
-      <body className={inter.className}>
-        {/* 2. WRAP EVERYTHING INSIDE CARTPROVIDER */}
-        <CartProvider>
-          {children}
-        </CartProvider>
-      </body>
-    </html>
-  )
+  // ✅ CORRECT
+return (
+  <html lang="en">
+    <body className={inter.className}>
+      <CartProvider>  {/* <--- START TAG HERE */}
+        <Navbar />
+        {children}
+        <Footer />
+      </CartProvider> {/* <--- END TAG HERE */}
+    </body>
+  </html>
+)
 }
