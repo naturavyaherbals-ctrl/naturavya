@@ -1,19 +1,27 @@
 "use client"
 
-import { useCart } from "@/app/lib/cart/cart-context"
+// 1. FIX THE IMPORT PATH (Match layout.tsx exactly)
+import { useCart } from "@/lib/cart/cart-context" 
 import { Button } from "@/components/ui/button"
-import { Trash, Minus, Plus, ChevronRight } from "lucide-react"
+import { Trash, ChevronRight } from "lucide-react"
 import Link from "next/link"
 
 export default function CartPage() {
-  const { items, removeItem, total } = useCart()
+  // 2. USE THE CORRECT NAMES FROM YOUR CONTEXT
+  // (Your context calls it 'removeFromCart', not 'removeItem')
+  const { items, removeFromCart } = useCart()
+
+  // 3. CALCULATE TOTAL MANUALLY
+  // (Your context doesn't provide 'total', so we calculate it here)
+  const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
 
   if (items.length === 0) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center p-4 text-center">
         <h1 className="text-2xl font-bold mb-4">Your Cart is Empty</h1>
         <p className="text-muted-foreground mb-8">Looks like you haven't added anything yet.</p>
-        <Link href="/categories">
+        {/* Update this link if your categories page is named differently */}
+        <Link href="/">
           <Button size="lg" className="rounded-full">Start Shopping</Button>
         </Link>
       </div>
@@ -30,6 +38,7 @@ export default function CartPage() {
           {items.map((item) => (
             <div key={item.id} className="flex gap-4 p-4 border rounded-xl bg-card">
               <div className="h-24 w-24 bg-muted rounded-lg overflow-hidden flex-shrink-0">
+                {/* Standard HTML img tag to avoid Next.js Image config issues */}
                 {item.image && <img src={item.image} alt={item.name} className="w-full h-full object-cover" />}
               </div>
               
@@ -47,7 +56,8 @@ export default function CartPage() {
                     variant="ghost" 
                     size="icon" 
                     className="text-destructive hover:text-destructive/80"
-                    onClick={() => removeItem(item.id)}
+                    // 4. USE THE CORRECT FUNCTION NAME
+                    onClick={() => removeFromCart(item.id)}
                   >
                     <Trash className="h-4 w-4" />
                   </Button>
