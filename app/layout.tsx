@@ -1,7 +1,11 @@
 import './globals.css'
 import { Inter } from 'next/font/google'
 
-// 1. IMPORT THE PROVIDER (Check your exact path, it might be different)
+// 1. MAKE SURE THESE COMPONENT IMPORTS ARE HERE
+import Navbar from '@/components/Navbar'
+import Footer from '@/components/Footer'
+
+// 2. YOUR CART PROVIDER IMPORT
 import { CartProvider } from '@/lib/cart/cart-context'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -11,16 +15,15 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  // ✅ CORRECT
-return (
-  <html lang="en">
-    <body className={inter.className}>
-      <CartProvider>  {/* <--- START TAG HERE */}
-        <Navbar />
-        {children}
-        <Footer />
-      </CartProvider> {/* <--- END TAG HERE */}
-    </body>
-  </html>
-)
+  return (
+    <html lang="en">
+      <body className={inter.className}>
+        <CartProvider>
+          <Navbar />
+          {children}
+          <Footer />
+        </CartProvider>
+      </body>
+    </html>
+  )
 }
