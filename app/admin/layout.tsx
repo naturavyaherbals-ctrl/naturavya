@@ -1,13 +1,12 @@
-// app/admin/layout.tsx
-// We removed 'requireAdmin()' to stop the redirect loop.
-
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  // REMOVED: await requireAdmin()
+  // The layout should only handle design, not security.
   return (
-    <div className="min-h-screen bg-muted/20">
+    <div className="min-h-screen bg-gray-50">
       {children}
     </div>
   )
