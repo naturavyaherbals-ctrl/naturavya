@@ -9,6 +9,7 @@ import {
   Phone,
   MapPin,
 } from "lucide-react"
+import { supabaseServer } from "@/app/lib/supabase/server"
 
 const footerLinks = {
   shop: [
@@ -25,16 +26,30 @@ const footerLinks = {
     { label: "Testimonials", href: "/testimonials" },
     { label: "Contact", href: "/contact" },
   ],
-  support: [
-    { label: "FAQs", href: "/faqs" },
-    { label: "Shipping", href: "/shipping" },
-    { label: "Returns", href: "/returns" },
-    { label: "Track Order", href: "/track-order" },
-    { label: "Privacy Policy", href: "/privacy" },
-  ],
 }
 
-function Footer() {
+export default async function Footer() {
+  const supabase = await supabaseServer()
+
+  // 1. Fetch settings from Database
+  const { data: settings } = await supabase.from("settings").select("*")
+
+  // 2. Helper to get value safely
+  const getVal = (key: string, fallback: string) => 
+    settings?.find(s => s.key === key)?.value || fallback
+
+  // 3. Get dynamic values
+  const phone = getVal("phone", "+91 98765 43210")
+  const email = getVal("support_email", "hello@naturavya.com")
+  const address = getVal("address", "Mumbai, Maharashtra, India")
+  
+  const socialLinks = [
+    { icon: Instagram, url: getVal("instagram", "#") },
+    { icon: Facebook, url: getVal("facebook", "#") },
+    { icon: Twitter, url: getVal("twitter", "#") },
+    { icon: Youtube, url: getVal("youtube", "#") },
+  ]
+
   return (
     <footer className="bg-foreground text-background">
       <div className="max-w-7xl mx-auto px-4 py-16">
@@ -54,13 +69,15 @@ function Footer() {
             </p>
 
             <div className="flex items-center gap-4">
-              {[Instagram, Facebook, Twitter, Youtube].map((Icon, index) => (
+              {socialLinks.map((item, index) => (
                 <a
                   key={index}
-                  href="#"
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="w-10 h-10 rounded-full bg-background/10 flex items-center justify-center hover:bg-primary transition-colors"
                 >
-                  <Icon className="w-5 h-5" />
+                  <item.icon className="w-5 h-5" />
                 </a>
               ))}
             </div>
@@ -100,26 +117,26 @@ function Footer() {
             </ul>
           </div>
 
-          {/* Contact */}
+          {/* Contact (Dynamic!) */}
           <div>
             <h4 className="font-semibold text-lg mb-4">Contact</h4>
             <ul className="space-y-4">
               <li className="flex items-start gap-3">
-                <Mail className="w-5 h-5 text-primary" />
-                <span className="text-background/70">
-                  hello@naturavya.com
-                </span>
+                <Mail className="w-5 h-5 text-primary shrink-0" />
+                <a href={`mailto:${email}`} className="text-background/70 hover:text-primary transition">
+                  {email}
+                </a>
               </li>
               <li className="flex items-start gap-3">
-                <Phone className="w-5 h-5 text-primary" />
-                <span className="text-background/70">
-                  +91 98765 43210
-                </span>
+                <Phone className="w-5 h-5 text-primary shrink-0" />
+                <a href={`tel:${phone}`} className="text-background/70 hover:text-primary transition">
+                  {phone}
+                </a>
               </li>
               <li className="flex items-start gap-3">
-                <MapPin className="w-5 h-5 text-primary" />
+                <MapPin className="w-5 h-5 text-primary shrink-0" />
                 <span className="text-background/70">
-                  Mumbai, Maharashtra, India
+                  {address}
                 </span>
               </li>
             </ul>
@@ -131,26 +148,11 @@ function Footer() {
           <p className="text-sm text-background/50">
             © {new Date().getFullYear()} Naturavya. All rights reserved.
           </p>
-
           <div className="flex items-center gap-6">
-            <Link
-              href="/terms"
-              className="text-sm text-background/50 hover:text-primary"
-            >
-              Terms of Service
-            </Link>
-            <Link
-              href="/privacy"
-              className="text-sm text-background/50 hover:text-primary"
-            >
-              Privacy Policy
-            </Link>
+             <Link href="/admin" className="text-sm text-background/50 hover:text-primary">Admin Login</Link>
           </div>
         </div>
       </div>
     </footer>
   )
 }
-
-export default Footer
-export { Footer }
