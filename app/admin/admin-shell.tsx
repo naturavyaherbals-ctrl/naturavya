@@ -15,14 +15,12 @@ import {
   BarChart3,
   Settings,
   Menu,
-  Bell,
-  Search,
-  ChevronDown,
-  LogOut,
-  User,
-  Leaf,
   Sparkles,
   ImageIcon,
+  Leaf,
+  ChevronDown,
+  User,
+  Search,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -55,17 +53,24 @@ const sidebarItems = [
 export default function AdminShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
-
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
   }, [])
 
+  // --- THE FIX STARTS HERE ---
+  // If we are on the login page, DO NOT show the sidebar.
+  // Just show the login form (children) directly.
+  if (pathname === "/admin/login") {
+    return <>{children}</>
+  }
+  // --- THE FIX ENDS HERE ---
+
   return (
     <Suspense fallback={null}>
       <div className="min-h-screen bg-muted/30">
-        {/* Overlay */}
+        {/* Overlay for mobile */}
         {sidebarOpen && (
           <div
             className="fixed inset-0 z-40 bg-black/50 lg:hidden"
@@ -90,20 +95,15 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
           <nav className="p-4 space-y-1">
             {sidebarItems.map((item) => {
-              const active =
-                pathname === item.href ||
-                pathname.startsWith(item.href + "/")
-
+              const active = pathname === item.href || pathname.startsWith(item.href + "/")
               return (
                 <Link
                   key={item.name}
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
                   className={cn(
-                    "flex items-center gap-3 px-3 py-2 rounded-lg text-sm",
-                    active
-                      ? "bg-primary text-white"
-                      : "hover:bg-muted"
+                    "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
+                    active ? "bg-primary text-white" : "hover:bg-muted text-muted-foreground hover:text-foreground"
                   )}
                 >
                   <item.icon className="h-4 w-4" />
@@ -114,49 +114,48 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           </nav>
         </aside>
 
-        {/* Main */}
+        {/* Main Content Area */}
         <div className="lg:pl-64">
-          <header className="h-16 bg-card border-b flex items-center px-4 gap-4">
-  <Button
-    size="icon"
-    variant="ghost"
-    className="lg:hidden"
-    onClick={() => setSidebarOpen(true)}
-  >
-    <Menu />
-  </Button>
+          <header className="h-16 bg-card border-b flex items-center px-4 gap-4 sticky top-0 z-40">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="lg:hidden"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <Menu />
+            </Button>
 
-  <div className="relative flex-1 max-w-md">
-    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-    <Input className="pl-9" placeholder="Search..." />
-  </div>
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input className="pl-9" placeholder="Search..." />
+            </div>
 
-  {mounted && (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost">
-          <User className="h-4 w-4 mr-2" />
-          <ChevronDown className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Admin</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-
-        <DropdownMenuItem
-  className="text-destructive"
-  onClick={async () => {
-    await fetch("/admin/logout", { method: "POST" })
-    window.location.href = "/admin/login"
-  }}
->
-  Logout
-</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )}
-</header>
+            {mounted && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full">
+                    <User className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive cursor-pointer"
+                    onClick={async () => {
+                      // Call the logout API
+                      await fetch("/admin/logout", { method: "POST" })
+                      // Redirect to login
+                      window.location.href = "/admin/login"
+                    }}
+                  >
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </header>
 
           <main className="p-6">{children}</main>
         </div>
