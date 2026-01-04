@@ -1,8 +1,5 @@
 "use client"
 
-export const dynamic = "force-dynamic";
-
-
 import { useState } from "react"
 import { Plus, Pencil, Trash2, Eye, EyeOff, Copy, Calendar, Sparkles, ArrowUpDown } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"

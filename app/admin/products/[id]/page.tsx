@@ -1,4 +1,4 @@
-import { supabaseServer } from "@/lib/supabase/server"
+import { supabaseServer } from "@/app/lib/supabase/server"
 import EditProductForm from "./edit-form"
 
 export default async function EditProductPage({

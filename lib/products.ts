@@ -1,4 +1,4 @@
-import { supabaseServer } from "@/lib/supabase/server"
+import { supabaseServer } from "@/app/lib/supabase/server"
 
 export async function getAllProducts() {
   const supabase = supabaseServer()

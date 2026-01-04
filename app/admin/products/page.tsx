@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { supabaseServer } from "@/lib/supabase/server"
+import { supabaseServer } from "@/app/lib/supabase/server"
 import { Button } from "@/components/ui/button"
 
 export default async function ProductsPage() {

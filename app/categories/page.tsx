@@ -1,8 +1,6 @@
-export const dynamic = "force-dynamic"
-
 import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"
-import { supabaseServer } from "@/lib/supabase/server"
+import { supabaseServer } from "@/app/lib/supabase/server"
 
 export default async function CategoriesPage() {
   const supabase = await supabaseServer()

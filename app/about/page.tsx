@@ -1,7 +1,5 @@
 "use client"
 
-export const dynamic = "force-dynamic"
-
 import { useRef } from "react"
 import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"
