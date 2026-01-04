@@ -1,5 +1,4 @@
 import "./globals.css"
-// Ensure this path matches exactly where you created the file
 import { CartProvider } from "@/app/lib/cart/cart-context"
 import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"
@@ -17,10 +16,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {/* The Provider MUST wrap everything inside body */}
         <CartProvider>
           <Navbar />
-          {children}
+          {/* Your page content loads here */}
+          {children} 
           <Footer />
         </CartProvider>
       </body>
