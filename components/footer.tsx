@@ -9,7 +9,7 @@ import {
   Phone,
   MapPin,
 } from "lucide-react"
-import { supabaseServer } from "@/app/lib/supabase/server"
+import { createClient } from "@/app/lib/supabase/server"
 
 const footerLinks = {
   shop: [
@@ -29,7 +29,7 @@ const footerLinks = {
 }
 
 export default async function Footer() {
-  const supabase = await supabaseServer()
+  const supabase = await createClient()
 
   // 1. Fetch settings from Database
   const { data: settings } = await supabase.from("settings").select("*")
@@ -42,7 +42,7 @@ export default async function Footer() {
   const phone = getVal("phone", "+91 98765 43210")
   const email = getVal("support_email", "hello@naturavya.com")
   const address = getVal("address", "Mumbai, Maharashtra, India")
-  
+   
   const socialLinks = [
     { icon: Instagram, url: getVal("instagram", "#") },
     { icon: Facebook, url: getVal("facebook", "#") },
@@ -148,9 +148,7 @@ export default async function Footer() {
           <p className="text-sm text-background/50">
             © {new Date().getFullYear()} Naturavya. All rights reserved.
           </p>
-          <div className="flex items-center gap-6">
-             <Link href="/admin" className="text-sm text-background/50 hover:text-primary">Admin Login</Link>
-          </div>
+          {/* Admin Login removed from here */}
         </div>
       </div>
     </footer>

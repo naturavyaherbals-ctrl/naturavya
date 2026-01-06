@@ -1,93 +1,113 @@
 "use client"
 
-// 1. FIX THE IMPORT PATH (Match layout.tsx exactly)
-import { useCart } from "@/lib/cart/cart-context" 
-import { Button } from "@/components/ui/button"
-import { Trash, ChevronRight } from "lucide-react"
 import Link from "next/link"
+import { Trash2, ArrowRight, Minus, Plus } from "lucide-react"
+import { useCart } from "@/app/context/cart-context" 
+import { Button } from "@/components/ui/button"
 
 export default function CartPage() {
-  // 2. USE THE CORRECT NAMES FROM YOUR CONTEXT
-  // (Your context calls it 'removeFromCart', not 'removeItem')
-  const { items, removeFromCart } = useCart()
+  // 1. Get the new functions from context
+  const { items, addToCart, removeFromCart, deleteItem, cartCount } = useCart()
 
-  // 3. CALCULATE TOTAL MANUALLY
-  // (Your context doesn't provide 'total', so we calculate it here)
   const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0)
 
   if (items.length === 0) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center p-4 text-center">
-        <h1 className="text-2xl font-bold mb-4">Your Cart is Empty</h1>
-        <p className="text-muted-foreground mb-8">Looks like you haven't added anything yet.</p>
-        {/* Update this link if your categories page is named differently */}
-        <Link href="/">
-          <Button size="lg" className="rounded-full">Start Shopping</Button>
-        </Link>
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4">
+        <h2 className="text-2xl font-bold mb-4">Your Cart is Empty</h2>
+        <Button asChild>
+          <Link href="/categories">
+            Start Shopping <ArrowRight className="ml-2 w-4 h-4" />
+          </Link>
+        </Button>
       </div>
     )
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12">
-      <h1 className="text-3xl font-bold mb-8">Shopping Cart</h1>
-      
-      <div className="grid md:grid-cols-3 gap-8">
-        {/* Cart Items */}
-        <div className="md:col-span-2 space-y-4">
+    <div className="max-w-7xl mx-auto px-4 py-20">
+      <h1 className="text-3xl font-bold mb-10">Shopping Cart ({cartCount})</h1>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+        <div className="lg:col-span-2 space-y-6">
           {items.map((item) => (
-            <div key={item.id} className="flex gap-4 p-4 border rounded-xl bg-card">
-              <div className="h-24 w-24 bg-muted rounded-lg overflow-hidden flex-shrink-0">
-                {/* Standard HTML img tag to avoid Next.js Image config issues */}
-                {item.image && <img src={item.image} alt={item.name} className="w-full h-full object-cover" />}
+            <div key={item.id} className="flex gap-6 p-4 border rounded-xl bg-card">
+              {/* Image */}
+              <div className="w-24 h-24 bg-gray-100 rounded-lg overflow-hidden shrink-0">
+                {item.image ? (
+                  <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">No Image</div>
+                )}
               </div>
-              
+
+              {/* Details */}
               <div className="flex-1 flex flex-col justify-between">
-                <div>
-                  <h3 className="font-semibold">{item.name}</h3>
-                  <p className="text-primary font-bold">₹{item.price}</p>
-                </div>
-                
-                <div className="flex items-center justify-between mt-2">
-                  <div className="flex items-center gap-3 text-sm border rounded-full px-3 py-1">
-                    <span>Qty: {item.quantity}</span>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-semibold text-lg">{item.title}</h3>
+                    <p className="text-sm text-gray-500">Unit Price: ₹{item.price}</p>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="text-destructive hover:text-destructive/80"
-                    // 4. USE THE CORRECT FUNCTION NAME
-                    onClick={() => removeFromCart(item.id)}
+                  <p className="font-bold text-lg">₹{item.price * item.quantity}</p>
+                </div>
+
+                <div className="flex justify-between items-center mt-4">
+                  {/* Quantity Controls */}
+                  <div className="flex items-center gap-3 border rounded-lg px-2 py-1">
+                    
+                    {/* 👇 MINUS BUTTON NOW WORKS */}
+                    <button 
+                      className="p-1 hover:text-primary disabled:opacity-50"
+                      onClick={() => removeFromCart(item.id)}
+                      disabled={item.quantity <= 1} // Optional: Disable if 1
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    
+                    <span className="w-4 text-center text-sm font-medium">{item.quantity}</span>
+                    
+                    {/* PLUS BUTTON */}
+                    <button 
+                      className="p-1 hover:text-primary" 
+                      onClick={() => addToCart(item)}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  {/* 👇 DELETE BUTTON NOW WORKS */}
+                  <button 
+                    className="text-red-500 hover:text-red-600 transition-colors"
+                    onClick={() => deleteItem(item.id)}
                   >
-                    <Trash className="h-4 w-4" />
-                  </Button>
+                    <Trash2 className="w-5 h-5" />
+                  </button>
                 </div>
               </div>
             </div>
           ))}
         </div>
 
-        {/* Checkout Summary */}
-        <div className="h-fit p-6 border rounded-xl bg-muted/20">
-          <h3 className="font-semibold text-lg mb-4">Order Summary</h3>
-          <div className="space-y-2 mb-4 text-sm">
-            <div className="flex justify-between">
-              <span>Subtotal</span>
-              <span>₹{total}</span>
+        {/* Order Summary */}
+        <div className="lg:col-span-1">
+          <div className="bg-gray-50 p-6 rounded-2xl border sticky top-24">
+            <h3 className="font-bold text-xl mb-6">Order Summary</h3>
+            <div className="space-y-4 mb-6 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Subtotal</span>
+                <span className="font-medium">₹{total}</span>
+              </div>
+              <div className="border-t pt-4 flex justify-between text-lg font-bold">
+                <span>Total</span>
+                <span>₹{total}</span>
+              </div>
             </div>
-            <div className="flex justify-between text-muted-foreground">
-              <span>Shipping</span>
-              <span>Free</span>
-            </div>
+            <Button size="lg" className="w-full font-bold">
+             <Link href="/checkout">
+              Proceed to Checkout
+             </Link>
+            </Button>
           </div>
-          <div className="border-t pt-4 mb-6 flex justify-between font-bold text-lg">
-            <span>Total</span>
-            <span>₹{total}</span>
-          </div>
-          
-          <Button className="w-full size-lg text-lg rounded-full">
-            Checkout <ChevronRight className="ml-2 h-4 w-4" />
-          </Button>
         </div>
       </div>
     </div>

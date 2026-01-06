@@ -7,6 +7,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ShoppingBag, Heart, Star, Eye } from "lucide-react"
 import { cn } from "@/lib/utils"
+// 👇 1. Import the cart context
+import { useCart } from "@/app/context/cart-context"
 
 /* ✅ CORRECT PRODUCT TYPE */
 type Product = {
@@ -30,12 +32,28 @@ interface ProductCardProps {
 export function ProductCard({ product }: ProductCardProps) {
   const [isHovered, setIsHovered] = useState(false)
   const [isWishlisted, setIsWishlisted] = useState(false)
+  
+  // 👇 2. Get the function from Context
+  const { addToCart } = useCart()
 
   const originalPrice = product.originalPrice ?? product.price
   const discount =
     originalPrice > product.price
       ? Math.round(((originalPrice - product.price) / originalPrice) * 100)
       : 0
+
+  // 👇 3. Helper to prepare item for Cart (handling name/image mismatches)
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault() // Stop clicking through to the product page
+    
+    addToCart({
+      ...product,
+      id: product.id,
+      title: product.name, // Cart expects 'title'
+      image: product.images?.[0] || "/placeholder.svg", // Cart expects singular 'image'
+      price: product.price
+    })
+  }
 
   return (
     <Card
@@ -95,9 +113,11 @@ export function ProductCard({ product }: ProductCardProps) {
             isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
           )}
         >
+          {/* 👇 4. ATTACH CLICK HANDLER HERE */}
           <Button
             size="sm"
             className="flex-1 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground"
+            onClick={handleAddToCart}
           >
             <ShoppingBag className="w-4 h-4 mr-2" />
             Add to Cart

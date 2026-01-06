@@ -1,30 +1,19 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { type NextRequest } from 'next/server'
+import { updateSession } from '@/app/lib/supabase/middleware'
 
-export function middleware(request: NextRequest) {
-  const path = request.nextUrl.pathname
-
-  // 1. Only protect /admin paths
-  if (path.startsWith('/admin')) {
-    
-    // 2. IMPORTANT: Allow the login page to load (Stops the loop!)
-    if (path === '/admin/login') {
-      return NextResponse.next()
-    }
-
-    // 3. Check for the cookie your login page sets ("admin-auth")
-    const isAdmin = request.cookies.get('admin-auth')?.value === 'true'
-
-    // 4. If not logged in, redirect to login
-    if (!isAdmin) {
-      return NextResponse.redirect(new URL('/admin/login', request.url))
-    }
-  }
-
-  return NextResponse.next()
+export async function middleware(request: NextRequest) {
+  return await updateSession(request)
 }
 
-// Apply this to all admin routes
 export const config = {
-  matcher: ['/admin/:path*'],
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - images/ (public images)
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
 }

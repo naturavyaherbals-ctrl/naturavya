@@ -1,10 +1,11 @@
 "use client"
 
+import { useState, useEffect } from "react" // 👈 Added imports
 import { motion } from "framer-motion"
 import { Leaf } from "lucide-react"
 import Link from "next/link"
 
-// Components (Ensure these exist in your components folder)
+// Components
 import PromoSlider from "@/components/promo-slider"
 import FeaturedProducts from "@/components/featured-products"
 import IngredientsSection from "@/components/ingredients-section"
@@ -15,27 +16,44 @@ import { Button } from "@/components/ui/button"
 
 /* Animation: Floating leaves background */
 function FloatingLeavesBackground() {
+  const [leaves, setLeaves] = useState<any[]>([])
+
+  // Move randomness to useEffect (Client-side only)
+  useEffect(() => {
+    const generatedLeaves = Array.from({ length: 12 }).map((_, i) => ({
+      id: i,
+      initialX: Math.random() * 1400,
+      initialY: -120,
+      rotate: Math.random() * 360,
+      duration: 22 + Math.random() * 12,
+      fontSize: 24 + Math.random() * 28,
+      delay: Math.random() * 5
+    }))
+    setLeaves(generatedLeaves)
+  }, [])
+
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {Array.from({ length: 12 }).map((_, i) => (
+      {leaves.map((leaf) => (
         <motion.div
-          key={i}
+          key={leaf.id}
           className="absolute text-primary/20"
           initial={{
-            y: -120,
-            x: Math.random() * 1400,
-            rotate: Math.random() * 360,
+            y: leaf.initialY,
+            x: leaf.initialX,
+            rotate: leaf.rotate,
           }}
           animate={{
             y: "110vh",
             rotate: 360,
           }}
           transition={{
-            duration: 22 + Math.random() * 12,
+            duration: leaf.duration,
             repeat: Infinity,
             ease: "linear",
+            delay: leaf.delay
           }}
-          style={{ fontSize: 24 + Math.random() * 28 }}
+          style={{ fontSize: leaf.fontSize }}
         >
           <Leaf />
         </motion.div>
@@ -46,24 +64,37 @@ function FloatingLeavesBackground() {
 
 /* Animation: Soft bubbles */
 function FloatingBubbles() {
+  const [bubbles, setBubbles] = useState<any[]>([])
+
+  // Move randomness to useEffect (Client-side only)
+  useEffect(() => {
+    const generatedBubbles = Array.from({ length: 14 }).map((_, i) => ({
+      id: i,
+      left: `${Math.random() * 100}%`,
+      duration: 22 + Math.random() * 10,
+      delay: Math.random() * 6
+    }))
+    setBubbles(generatedBubbles)
+  }, [])
+
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      {Array.from({ length: 14 }).map((_, i) => (
+      {bubbles.map((bubble) => (
         <motion.div
-          key={i}
+          key={bubble.id}
           className="absolute rounded-full bg-primary/10 blur-xl"
           style={{
             width: 120,
             height: 120,
-            left: `${Math.random() * 100}%`,
+            left: bubble.left,
           }}
           initial={{ y: "110vh", opacity: 0 }}
           animate={{ y: "-20vh", opacity: 1 }}
           transition={{
-            duration: 22 + Math.random() * 10,
+            duration: bubble.duration,
             repeat: Infinity,
             ease: "linear",
-            delay: Math.random() * 6,
+            delay: bubble.delay,
           }}
         />
       ))}
@@ -74,10 +105,7 @@ function FloatingBubbles() {
 export default function HomePage() {
   return (
     <main className="relative overflow-hidden">
-      {/* NOTE: We removed <Navbar> and <Footer> from here 
-         because they are already in app/layout.tsx 
-      */}
-
+      
       {/* Hero Section */}
       <section className="relative pt-32 pb-24 px-4">
         <FloatingLeavesBackground />
@@ -89,8 +117,9 @@ export default function HomePage() {
           transition={{ duration: 0.8, ease: "easeOut" }}
           className="relative z-10 max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 items-center"
         >
+          
           {/* LEFT: Text Content */}
-          <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
+          <div className="flex flex-col items-center text-center lg:items-start lg:text-left order-2 lg:order-1">
             <span className="inline-block mb-4 text-sm tracking-wider text-primary">
               AYURVEDIC WELLNESS FOR INDIA
             </span>
@@ -107,7 +136,6 @@ export default function HomePage() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4">
-              {/* FIXED: Green Button now links to Shop */}
               <Link href="/categories">
                 <Button size="lg" className="rounded-full px-10 h-12 text-lg">
                   Shop Products
@@ -131,17 +159,17 @@ export default function HomePage() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 1 }}
-            className="relative hidden lg:flex justify-center"
+            className="relative flex justify-center order-1 lg:order-2"
           >
-            {/* Make sure this image exists in your public folder! */}
             <motion.img
               src="/hero-product.png"
               alt="Naturavya Ayurvedic Products"
-              className="max-w-md drop-shadow-2xl"
+              className="w-3/4 md:w-full max-w-md drop-shadow-2xl"
               animate={{ y: [0, -12, 0] }}
               transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
             />
           </motion.div>
+
         </motion.div>
       </section>
 

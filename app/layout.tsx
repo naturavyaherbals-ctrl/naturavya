@@ -9,7 +9,7 @@ import Footer from '@/components/footer'
 
 // 2. CART PROVIDER IMPORT
 // We know this path is correct now:
-import { CartProvider } from '@/lib/cart/cart-context'
+import { CartProvider } from '@/app/context/cart-context'
 
 const inter = Inter({ subsets: ['latin'] })
 

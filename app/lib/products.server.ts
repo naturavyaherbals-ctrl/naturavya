@@ -1,8 +1,8 @@
-import { supabaseServer } from "./supabase/server"
+import { createClient } from "./supabase/server"
 
 // 1. Existing function (kept as is)
 export async function getProductsByCategory(slug: string) {
-  const supabase = supabaseServer()
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from("products")
@@ -15,7 +15,7 @@ export async function getProductsByCategory(slug: string) {
 
 // 2. New function (Added this to fix the error)
 export async function getAllProducts() {
-  const supabase = supabaseServer()
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from("products")

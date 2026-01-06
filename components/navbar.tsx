@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import Image from "next/image" // 👈 1. Import Image component
 import { Menu, X, ShoppingBag, Search, User } from "lucide-react"
-
+import { useCart } from "@/app/context/cart-context"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -18,6 +19,8 @@ const navLinks = [
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  
+  const { cartCount } = useCart()
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 50)
@@ -36,13 +39,20 @@ export function Navbar() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-semibold text-lg">
-                N
-              </span>
+          
+          {/* Logo Section */}
+          <Link href="/" className="flex items-center gap-3"> {/* Increased gap for better spacing */}
+            
+            {/* 👇 2. YOUR LOGO HERE */}
+            <div className="relative w-10 h-10 rounded-full overflow-hidden shadow-sm">
+               <Image 
+                 src="/logo.png"        // Ensure 'logo.png' is in your public folder
+                 alt="Naturavya Logo"
+                 fill                   // This makes it fill the container
+                 className="object-cover"
+               />
             </div>
+
             <span className="text-2xl font-semibold tracking-wide text-foreground">
               Naturavya
             </span>
@@ -63,17 +73,29 @@ export function Navbar() {
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Search className="h-5 w-5" />
+            
+            <Button variant="ghost" size="icon" asChild>
+              <Link href="/search">
+                <Search className="h-5 w-5" />
+              </Link>
             </Button>
-            <Button variant="ghost" size="icon">
-              <User className="h-5 w-5" />
+
+            <Button variant="ghost" size="icon" asChild>
+              <Link href="/account">
+                <User className="h-5 w-5" />
+              </Link>
             </Button>
-            <Button variant="ghost" size="icon" className="relative">
-              <ShoppingBag className="h-5 w-5" />
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-accent text-accent-foreground text-xs rounded-full flex items-center justify-center">
-                0
-              </span>
+
+            {/* Cart Button */}
+            <Button variant="ghost" size="icon" className="relative" asChild>
+              <Link href="/cart">
+                <ShoppingBag className="h-5 w-5" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-accent text-accent-foreground text-xs rounded-full flex items-center justify-center">
+                    {cartCount}
+                  </span>
+                )}
+              </Link>
             </Button>
           </div>
 
@@ -107,13 +129,19 @@ export function Navbar() {
           ))}
 
           <div className="flex gap-4 pt-4 border-t border-border">
-            <Button variant="outline" size="sm" className="flex-1">
-              <Search className="h-4 w-4 mr-2" />
-              Search
+            <Button variant="outline" size="sm" className="flex-1" asChild>
+               <Link href="/search" onClick={() => setIsOpen(false)}>
+                 <Search className="h-4 w-4 mr-2" />
+                 Search
+               </Link>
             </Button>
-            <Button variant="outline" size="sm" className="flex-1">
-              <ShoppingBag className="h-4 w-4 mr-2" />
-              Cart
+
+            {/* Mobile Cart Link */}
+            <Button variant="outline" size="sm" className="flex-1" asChild>
+               <Link href="/cart" onClick={() => setIsOpen(false)}>
+                 <ShoppingBag className="h-4 w-4 mr-2" />
+                 Cart ({cartCount})
+               </Link>
             </Button>
           </div>
         </div>
@@ -123,4 +151,3 @@ export function Navbar() {
 }
 
 export default Navbar
-
