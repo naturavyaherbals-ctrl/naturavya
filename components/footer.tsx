@@ -3,11 +3,10 @@ import {
   Leaf,
   Instagram,
   Facebook,
-  Twitter,
-  Youtube,
   Mail,
   Phone,
   MapPin,
+  MessageCircle, // Added for WhatsApp
 } from "lucide-react"
 import { createClient } from "@/app/lib/supabase/server"
 
@@ -42,12 +41,19 @@ export default async function Footer() {
   const phone = getVal("phone", "+91 98765 43210")
   const email = getVal("support_email", "hello@naturavya.com")
   const address = getVal("address", "Mumbai, Maharashtra, India")
-   
+  
+  // Clean phone number for WhatsApp link (remove spaces/dashes)
+  const cleanPhone = phone.replace(/[^0-9]/g, '')
+
   const socialLinks = [
+    // Call Button
+    { icon: Phone, url: `tel:${phone}` },
+    // WhatsApp Button (Using MessageCircle icon as standard generic)
+    { icon: MessageCircle, url: `https://wa.me/${cleanPhone}` },
+    // Instagram
     { icon: Instagram, url: getVal("instagram", "#") },
+    // Facebook
     { icon: Facebook, url: getVal("facebook", "#") },
-    { icon: Twitter, url: getVal("twitter", "#") },
-    { icon: Youtube, url: getVal("youtube", "#") },
   ]
 
   return (
@@ -148,7 +154,6 @@ export default async function Footer() {
           <p className="text-sm text-background/50">
             © {new Date().getFullYear()} Naturavya. All rights reserved.
           </p>
-          {/* Admin Login removed from here */}
         </div>
       </div>
     </footer>

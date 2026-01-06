@@ -1,30 +1,27 @@
-"use server"
+'use server'
 
-import { supabaseServer } from "@/lib/supabase/server"
-import { redirect } from "next/navigation"
+import { createClient } from '@/app/lib/supabase/server'
+import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 
-export async function createCategory(formData: FormData) {
-  const supabase = supabaseServer()
+export async function updateCategory(formData: FormData) {
+  const supabase = await createClient()
 
-  await supabase.from("categories").insert({
-    name: formData.get("name"),
-  })
+  const id = formData.get('id') as string
+  const title = formData.get('title') as string
+  const slug = formData.get('slug') as string
+  const description = formData.get('description') as string
+  const image = formData.get('image') as string
 
-  redirect("/admin/categories")
-}
+  const { error } = await supabase
+    .from('categories')
+    .update({ title, slug, description, image })
+    .eq('id', id)
 
-export async function updateCategory(id: string, formData: FormData) {
-  const supabase = supabaseServer()
+  if (error) {
+    return { error: error.message }
+  }
 
-  await supabase
-    .from("categories")
-    .update({ name: formData.get("name") })
-    .eq("id", id)
-
-  redirect("/admin/categories")
-}
-
-export async function deleteCategory(id: string) {
-  const supabase = supabaseServer()
-  await supabase.from("categories").delete().eq("id", id)
+  revalidatePath('/admin/categories')
+  redirect('/admin/categories')
 }

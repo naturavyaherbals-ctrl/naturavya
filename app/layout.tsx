@@ -1,21 +1,18 @@
-import './globals.css'
-import { Inter } from 'next/font/google'
+import type { Metadata } from "next"
+import { Inter } from "next/font/google"
+import "./globals.css"
+import { CartProvider } from "@/app/context/cart-context"
+import LayoutWrapper from "@/components/layout-wrapper" 
 
-// 1. COMPONENT IMPORTS
-// (If your folders are different, you might need to adjust these, 
-// but based on your errors, these seem to be the standard paths)
-import Navbar from '@/components/navbar'
-import Footer from '@/components/footer'
+// Import Navbar and Footer here (Server Side)
+import { Navbar } from "@/components/navbar"
+import Footer from "@/components/footer" 
 
-// 2. CART PROVIDER IMPORT
-// We know this path is correct now:
-import { CartProvider } from '@/app/context/cart-context'
+const inter = Inter({ subsets: ["latin"] })
 
-const inter = Inter({ subsets: ['latin'] })
-
-export const metadata = {
-  title: 'Naturavya Herbals',
-  description: 'Ancient Wisdom meets Modern Alchemy',
+export const metadata: Metadata = {
+  title: "Naturavya Herbals",
+  description: "Premium Ayurvedic Wellness",
 }
 
 export default function RootLayout({
@@ -26,13 +23,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        {/* 3. THE WRAPPER MUST BE HERE */}
         <CartProvider>
-          <Navbar />
-          <main className="min-h-screen">
+          {/* 👇 Pass Navbar and Footer as props */}
+          <LayoutWrapper 
+            navbar={<Navbar />} 
+            footer={<Footer />}
+          >
             {children}
-          </main>
-          <Footer />
+          </LayoutWrapper>
         </CartProvider>
       </body>
     </html>

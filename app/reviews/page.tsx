@@ -1,172 +1,191 @@
-"use client"
+'use client'
 
-import { useState } from "react"
-import WhatsAppButton from "@/components/whatsapp-button"
-import { ReviewCard } from "@/components/review-card"
-import { reviews } from "@/lib/reviews-data"
-import { Star, Filter, SlidersHorizontal, Search } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { cn } from "@/lib/utils"
+import { useEffect, useState } from 'react'
+import { createClient } from '@supabase/supabase-js'
+import { Star, User, Send, CheckCircle } from 'lucide-react'
 
-export default function ReviewsPage() {
-  const [selectedRating, setSelectedRating] = useState<number | null>(null)
-  const [searchQuery, setSearchQuery] = useState("")
+// --- 1. INITIALIZE SUPABASE ---
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const supabase = createClient(supabaseUrl!, supabaseKey!)
 
-  const filteredReviews = reviews.filter((review) => {
-    const matchesRating = selectedRating === null || review.rating === selectedRating
-    const matchesSearch =
-      searchQuery === "" ||
-      review.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      review.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      review.productName.toLowerCase().includes(searchQuery.toLowerCase())
+export default function PublicReviewsPage() {
+  const [reviews, setReviews] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
 
-    return matchesRating && matchesSearch
+  // Form State
+  const [formData, setFormData] = useState({
+    customer_name: '',
+    rating: 5,
+    comment: ''
   })
 
-  const averageRating = (
-    reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length
-  ).toFixed(1)
+  // --- 2. FETCH APPROVED REVIEWS ONLY ---
+  useEffect(() => {
+    const fetchReviews = async () => {
+      // Only show reviews that you have Approved in the Admin panel
+      const { data, error } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('status', 'Approved') 
+        .order('created_at', { ascending: false })
 
-  const totalReviews = reviews.length
-
-  const ratingDistribution = [5, 4, 3, 2, 1].map((rating) => {
-    const count = reviews.filter((r) => r.rating === rating).length
-    return {
-      rating,
-      count,
-      percentage: (count / totalReviews) * 100,
+      if (!error) setReviews(data || [])
+      setLoading(false)
     }
-  })
+    fetchReviews()
+  }, [])
+
+  // --- 3. HANDLE SUBMISSION ---
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSubmitting(true)
+
+    // Insert new review with 'Pending' status
+    const { error } = await supabase.from('reviews').insert([
+      { ...formData, status: 'Pending', helpful_count: 0 }
+    ])
+
+    if (!error) {
+      setSubmitted(true)
+      setFormData({ customer_name: '', rating: 5, comment: '' })
+    } else {
+      alert('Failed to submit review. Please try again.')
+    }
+    setSubmitting(false)
+  }
+
+  // Helper for stars
+  const renderStars = (count: number, interactable = false) => {
+    return [...Array(5)].map((_, i) => (
+      <button
+        key={i}
+        type="button"
+        disabled={!interactable}
+        onClick={() => interactable && setFormData({ ...formData, rating: i + 1 })}
+        className={`${interactable ? 'cursor-pointer hover:scale-110 transition' : 'cursor-default'}`}
+      >
+        <Star 
+          size={interactable ? 28 : 16} 
+          className={`${i < count ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} 
+        />
+      </button>
+    ))
+  }
 
   return (
-    <main>
+    <div className="min-h-screen bg-white">
+      {/* Hero Section */}
+      <div className="bg-green-900 text-white py-16 px-6 text-center">
+        <h1 className="text-4xl font-bold mb-4">Customer Stories</h1>
+        <p className="text-green-100 max-w-2xl mx-auto">
+          See what our community has to say about their journey with Naturavya.
+        </p>
+      </div>
 
-      {/* Hero */}
-      <section className="pt-32 pb-16 px-4 bg-gradient-to-b from-muted/50 to-background">
-        <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-4xl md:text-5xl font-light mb-6">
-            Customer <span className="text-primary font-medium">Reviews</span>
-          </h1>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            Authentic experiences from customers on their wellness journey with Naturavya.
-          </p>
-        </div>
-      </section>
-
-      {/* Stats */}
-      <section className="py-12 px-4 border-b">
-        <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-8">
-          {/* Overall */}
-          <div className="p-6 bg-card rounded-2xl shadow-sm flex gap-8">
-            <div className="text-center">
-              <div className="text-6xl font-bold text-primary">{averageRating}</div>
-              <div className="flex justify-center gap-1 mt-2">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star
-                    key={i}
-                    className={cn(
-                      "w-5 h-5",
-                      i < Math.round(Number(averageRating))
-                        ? "fill-accent text-accent"
-                        : "fill-muted text-muted-foreground/30"
-                    )}
-                  />
-                ))}
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                Based on {totalReviews} reviews
-              </p>
-            </div>
-
-            <div className="flex-1 space-y-2">
-              {ratingDistribution.map((item) => (
-                <button
-                  key={item.rating}
-                  onClick={() =>
-                    setSelectedRating(
-                      selectedRating === item.rating ? null : item.rating
-                    )
-                  }
-                  className={cn(
-                    "w-full flex items-center gap-3 p-1 rounded",
-                    selectedRating === item.rating ? "bg-primary/10" : "hover:bg-muted"
-                  )}
-                >
-                  <span className="w-10 flex items-center gap-1">
-                    {item.rating}
-                    <Star className="w-3 h-3 fill-accent text-accent" />
-                  </span>
-                  <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-accent"
-                      style={{ width: `${item.percentage}%` }}
-                    />
-                  </div>
-                  <span className="w-8 text-sm text-muted-foreground">
-                    {item.count}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Search */}
-          <div className="p-6 bg-card rounded-2xl shadow-sm">
-            <h3 className="font-semibold mb-4">Find Reviews</h3>
-
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              <Input
-                placeholder="Search reviews..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-
-            <div className="flex gap-2 flex-wrap">
-              <Button
-                size="sm"
-                variant={selectedRating === null ? "default" : "outline"}
-                onClick={() => setSelectedRating(null)}
-              >
-                All
-              </Button>
-
-              {[5, 4, 3].map((r) => (
-                <Button
-                  key={r}
-                  size="sm"
-                  variant={selectedRating === r ? "default" : "outline"}
-                  onClick={() => setSelectedRating(r)}
-                >
-                  {r} <Star className="w-3 h-3 ml-1" />
-                </Button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Reviews */}
-      <section className="py-16 px-4">
-        <div className="max-w-7xl mx-auto">
-          {filteredReviews.length ? (
-            <div className="grid md:grid-cols-2 gap-6">
-              {filteredReviews.map((review) => (
-                <ReviewCard key={review.id} review={review} />
-              ))}
+      <div className="max-w-6xl mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-3 gap-12">
+        
+        {/* LEFT COLUMN: REVIEWS LIST */}
+        <div className="lg:col-span-2 space-y-8">
+          <h2 className="text-2xl font-bold text-gray-900">Recent Reviews</h2>
+          
+          {loading ? (
+            <p className="text-gray-500">Loading reviews...</p>
+          ) : reviews.length === 0 ? (
+            <div className="p-8 bg-gray-50 rounded-xl text-center border border-dashed">
+              <p className="text-gray-500">No reviews yet. Be the first to write one!</p>
             </div>
           ) : (
-            <div className="text-center py-16">
-              <Filter className="w-10 h-10 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No reviews found</p>
-            </div>
+            reviews.map((review) => (
+              <div key={review.id} className="border-b border-gray-100 pb-8 last:border-0">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 bg-green-50 rounded-full flex items-center justify-center text-green-700 font-bold">
+                    {review.customer_name.charAt(0)}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900">{review.customer_name}</h3>
+                    <div className="flex text-sm">{renderStars(review.rating)}</div>
+                  </div>
+                  <span className="ml-auto text-xs text-gray-400">
+                    {new Date(review.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+                <p className="text-gray-600 leading-relaxed">"{review.comment}"</p>
+              </div>
+            ))
           )}
         </div>
-      </section>
-      <WhatsAppButton />
-    </main>
+
+        {/* RIGHT COLUMN: WRITE REVIEW FORM */}
+        <div className="lg:col-span-1">
+          <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 sticky top-6">
+            
+            {!submitted ? (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Write a Review</h3>
+                <p className="text-sm text-gray-500 mb-4">Share your experience with us. Your review will be posted after moderation.</p>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Your Name</label>
+                  <input 
+                    required 
+                    type="text" 
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-green-500 outline-none" 
+                    placeholder="John Doe"
+                    value={formData.customer_name}
+                    onChange={e => setFormData({ ...formData, customer_name: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Rating</label>
+                  <div className="flex gap-2 mb-2">
+                    {renderStars(formData.rating, true)}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Review</label>
+                  <textarea 
+                    required 
+                    rows={4} 
+                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-green-500 outline-none" 
+                    placeholder="Tell us what you liked..."
+                    value={formData.comment}
+                    onChange={e => setFormData({ ...formData, comment: e.target.value })}
+                  />
+                </div>
+
+                <button 
+                  type="submit" 
+                  disabled={submitting}
+                  className="w-full bg-green-700 text-white py-3 rounded-lg font-bold hover:bg-green-800 transition flex items-center justify-center gap-2"
+                >
+                  {submitting ? 'Submitting...' : <><Send size={18} /> Submit Review</>}
+                </button>
+              </form>
+            ) : (
+              <div className="text-center py-10">
+                <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle size={32} />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Thank You!</h3>
+                <p className="text-gray-500 mt-2">Your review has been submitted successfully and is pending approval.</p>
+                <button 
+                  onClick={() => setSubmitted(false)}
+                  className="mt-6 text-green-700 font-medium hover:underline"
+                >
+                  Write another review
+                </button>
+              </div>
+            )}
+
+          </div>
+        </div>
+
+      </div>
+    </div>
   )
 }

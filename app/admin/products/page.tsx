@@ -1,48 +1,85 @@
 import Link from "next/link"
-import { supabaseServer } from "@/app/lib/supabase/server"
+import { Plus, Edit } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { createClient } from "@/app/lib/supabase/server"
 
 export default async function ProductsPage() {
-  const supabase = supabaseServer()
+  const supabase = await createClient()
 
-  const { data: products } = await supabase
+  const { data: products, error } = await supabase
     .from("products")
     .select("*")
     .order("created_at", { ascending: false })
 
+  if (error) {
+    return <div className="p-8 text-red-500">Error: {error.message}</div>
+  }
+
   return (
-    <div>
-      <div className="flex justify-between mb-6">
-        <h1 className="text-2xl font-bold">Products</h1>
+    <div className="p-8 max-w-7xl mx-auto">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Products</h1>
+          <p className="text-gray-500">Manage your product inventory</p>
+        </div>
         <Button asChild>
-          <Link href="/admin/products/new">Add Product</Link>
+          <Link href="/admin/products/new">
+            <Plus className="w-4 h-4 mr-2" />
+            Add Product
+          </Link>
         </Button>
       </div>
 
-      <table className="w-full border rounded">
-        <thead>
-          <tr className="border-b">
-            <th className="p-3 text-left">Name</th>
-            <th className="p-3 text-left">Price</th>
-            <th className="p-3 text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {products?.map((p) => (
-            <tr key={p.id} className="border-b">
-              <td className="p-3">{p.name}</td>
-              <td className="p-3">₹{p.price}</td>
-              <td className="p-3 text-right">
-                <Button size="sm" asChild variant="outline">
-                  <Link href={`/admin/products/${p.id}`}>
-                    Edit
-                  </Link>
-                </Button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="border rounded-lg bg-white shadow-sm overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[80px]">Image</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Price</TableHead>
+              <TableHead>Stock</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {products?.map((product) => (
+              <TableRow key={product.id}>
+                <TableCell>
+                  <div className="w-10 h-10 rounded-lg bg-gray-100 overflow-hidden">
+                     {(product.images?.[0] || product.image) && (
+                       <img 
+                         src={product.images?.[0] || product.image} 
+                         alt={product.title}
+                         className="w-full h-full object-cover"
+                       />
+                     )}
+                  </div>
+                </TableCell>
+                <TableCell className="font-medium">{product.title || product.name}</TableCell>
+                <TableCell className="capitalize text-gray-500">{product.category_slug}</TableCell>
+                <TableCell>₹{product.price}</TableCell>
+                <TableCell>{product.stock}</TableCell>
+                <TableCell className="text-right">
+                  <Button variant="ghost" size="icon" asChild>
+                    <Link href={`/admin/products/${product.id}`}>
+                      <Edit className="w-4 h-4 text-gray-500" />
+                    </Link>
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   )
 }
