@@ -5,7 +5,7 @@ export async function createClient() {
   // Await the cookie store (required for Next.js 15+)
   const cookieStore = await cookies()
 
-console.log("Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL)
+  // console.log("Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL) // You can comment this out to keep logs clean
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,3 +31,6 @@ console.log("Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL)
     }
   )
 }
+
+// 👇 THIS IS THE FIX: Export the alias so Admin pages work
+export const supabaseServer = createClient;
