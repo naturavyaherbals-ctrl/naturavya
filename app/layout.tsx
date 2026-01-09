@@ -12,7 +12,7 @@ const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://naturavya.com"), 
-  title: "Naturavya | Best Ayurvedic Products in Indore | Maxx Boom & Virya Plus",
+  title: "Naturavya | Best Ayurvedic Products in Indore | Maxx Boom & Virya Plus & ZeroAche & V-Stiff ",
   description: "Shop 100% safe Ayurvedic products at Naturavya. Buy Maxx Boom, Virya Plus, and Zero Ache. Natural wellness solutions with no side effects.",
   
   // 👇 FIXED: Only the code is here now (No <meta> tags)
