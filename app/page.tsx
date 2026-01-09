@@ -92,7 +92,7 @@ function SeoContent() {
             <div className="flex flex-col items-center md:items-start gap-3">
               <MapPin className="w-10 h-10 text-primary" />
               <h4 className="font-bold text-lg">Indore Based</h4>
-              <p className="text-sm text-muted-foreground">Gopal Nivas Building, Bada Ganpati, Indore, MP 452001.</p>
+              <p className="text-sm text-muted-foreground">403-B, Gulab Bagh Colony, Indore, MP 452010.</p>
             </div>
             <div className="flex flex-col items-center md:items-start gap-3">
               <Phone className="w-10 h-10 text-primary" />
