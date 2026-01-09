@@ -7,7 +7,7 @@ export const products = [
     price: 1999,
     image: "/products/v-stiff.png",
     shortDescription:
-      "Ayurvedic vaginal tightening gel with visible results in 3 days.",
+      "Restore natural elasticity and confidence with V-Stiff, a 100% Ayurvedic vaginal tightening gel. Formulated with pure herbal extracts to firm delicate tissues safely, offering visible tightening results in just 3 days without irritation.",
   },
   {
     id: "maxboom",
@@ -17,7 +17,7 @@ export const products = [
     price: 2499,
     image: "/products/maxboom.png",
     shortDescription:
-      "Natural breast enlargement gel & capsules with guaranteed results.",
+      "Achieve natural curves with MaxBoom, the complete Ayurvedic breast enhancement therapy (Capsules & Gel). This herbal formula promotes natural growth, lifts sagging tissues, and enhances shape safely with zero side effects.",
   },
   {
     id: "nullpile",
@@ -27,7 +27,7 @@ export const products = [
     price: 1799,
     image: "/products/nullpile.png",
     shortDescription:
-      "100% Ayurvedic solution for piles within 7–8 days.",
+      "Stop piles pain and bleeding naturally with NullPile Capsules. A powerful Ayurvedic remedy that shrinks hemorrhoids, heals fissures, and improves digestion to provide complete relief in 7–8 days, helping you avoid surgery.",
   },
   {
     id: "zeroache",
@@ -37,7 +37,7 @@ export const products = [
     price: 1499,
     image: "/products/zeroache.png",
     shortDescription:
-      "Relieves joint & body pain. Safe for all ages and genders.",
+      "Get instant relief from chronic joint pain, arthritis, and muscle stiffness with ZeroAche Oil. This deep-penetrating herbal analgesic reduces inflammation and restores mobility, safe for seniors and active individuals alike.",
   },
   {
     id: "virya-plus",
@@ -47,9 +47,10 @@ export const products = [
     price: 1999,
     image: "/products/virya-plus.png",
     shortDescription:
-      "Ayurvedic sex booster capsule for strength & stamina.",
+      "Boost male vitality and stamina with Virya+ Capsules, a premium Ayurvedic performance booster. Enriched with pure Shilajit and Ashwagandha, it enhances strength, timing, and energy levels for a healthy, confident intimate life.",
   },
 ]
+
 export function getProductBySlug(slug: string) {
   return products.find((product) => product.slug === slug)
 }
