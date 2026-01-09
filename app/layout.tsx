@@ -11,14 +11,13 @@ import Footer from "@/components/footer"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://naturavya.com"), // Ensure this matches your live domain
+  metadataBase: new URL("https://naturavya.com"), 
   title: "Naturavya Herbals",
   description: "Premium Ayurvedic Wellness",
   
-  // 👇 PASTE YOUR GOOGLE CODE BELOW
+  // 👇 FIXED: Only the code is here now (No <meta> tags)
   verification: {
-    google: "PASTE_YOUR_GOOGLE_CODE_HERE", 
-    <meta name="google-site-verification" content="dIYWKbaKKkRpQrYA__KIgt0SD_H0LMmBLqodAsAt0bk" />
+    google: "dIYWKbaKKkRpQrYA__KIgt0SD_H0LMmBLqodAsAt0bk",
   },
 
   openGraph: {
