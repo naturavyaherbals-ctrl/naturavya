@@ -6,6 +6,16 @@ import { Leaf } from "lucide-react"
 import Link from "next/link"
 import SeoSchema from "@/components/seo-schema"
 import FAQSchema from "@/components/faq-schema"
+// 👇 ADDED THIS MISSING IMPORT
+import { Button } from "@/components/ui/button"
+
+// Components
+import PromoSlider from "@/components/promo-slider"
+import FeaturedProducts from "@/components/featured-products"
+import IngredientsSection from "@/components/ingredients-section"
+import TestimonialsCarousel from "@/components/testimonials-carousel"
+import CTASection from "@/components/cta-section"
+import WhatsAppButton from "@/components/whatsapp-button"
 
 
 /* Floating leaves background */
@@ -224,5 +234,3 @@ export default function HomePage() {
     </main>
   )
 }
-
-
