@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   // 👇 PASTE YOUR GOOGLE CODE BELOW
   verification: {
     google: "PASTE_YOUR_GOOGLE_CODE_HERE", 
-    // Example: "aBcD_1234_xyZ..." (Do not include the <meta> tags, just the code)
+    <meta name="google-site-verification" content="dIYWKbaKKkRpQrYA__KIgt0SD_H0LMmBLqodAsAt0bk" />
   },
 
   openGraph: {
