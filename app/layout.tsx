@@ -2,19 +2,25 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { CartProvider } from "@/app/context/cart-context"
-import LayoutWrapper from "@/components/layout-wrapper" 
+import LayoutWrapper from "@/components/layout-wrapper"
 
 // Import Navbar and Footer here (Server Side)
 import { Navbar } from "@/components/navbar"
-import Footer from "@/components/footer" 
+import Footer from "@/components/footer"
 
 const inter = Inter({ subsets: ["latin"] })
 
-// 👇 UPDATED METADATA SECTION
 export const metadata: Metadata = {
-  metadataBase: new URL("https://naturavya.com"), // 👈 REPLACE with your actual domain if different
+  metadataBase: new URL("https://naturavya.com"), // Ensure this matches your live domain
   title: "Naturavya Herbals",
   description: "Premium Ayurvedic Wellness",
+  
+  // 👇 PASTE YOUR GOOGLE CODE BELOW
+  verification: {
+    google: "PASTE_YOUR_GOOGLE_CODE_HERE", 
+    // Example: "aBcD_1234_xyZ..." (Do not include the <meta> tags, just the code)
+  },
+
   openGraph: {
     title: "Naturavya Herbals",
     description: "Premium Ayurvedic Wellness",
@@ -22,8 +28,6 @@ export const metadata: Metadata = {
     siteName: "Naturavya",
     locale: "en_IN",
     type: "website",
-    // Next.js automatically detects opengraph-image.tsx, 
-    // but defining metadataBase above is required for it to work.
   },
 }
 
@@ -36,7 +40,6 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <CartProvider>
-          {/* 👇 Pass Navbar and Footer as props */}
           <LayoutWrapper 
             navbar={<Navbar />} 
             footer={<Footer />}
