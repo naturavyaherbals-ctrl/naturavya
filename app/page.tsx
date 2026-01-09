@@ -2,11 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Leaf } from "lucide-react"
+import { Leaf, Star, ShieldCheck, MapPin, Phone } from "lucide-react" // Added icons
 import Link from "next/link"
 import SeoSchema from "@/components/seo-schema"
 import FAQSchema from "@/components/faq-schema"
-// 👇 ADDED THIS MISSING IMPORT
 import { Button } from "@/components/ui/button"
 
 // Components
@@ -17,8 +16,101 @@ import TestimonialsCarousel from "@/components/testimonials-carousel"
 import CTASection from "@/components/cta-section"
 import WhatsAppButton from "@/components/whatsapp-button"
 
+/* -------------------------------------------------------------------------- */
+/* 1. SEO CONTENT COMPONENT (CRITICAL FOR GOOGLE RANKING)                     */
+/* -------------------------------------------------------------------------- */
+function SeoContent() {
+  return (
+    <section className="py-20 px-4 bg-stone-50 text-gray-800 border-t border-stone-200">
+      <div className="max-w-5xl mx-auto">
+        
+        {/* Main Brand Intro */}
+        <div className="mb-14 text-center max-w-3xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold mb-6 text-primary tracking-tight">
+            Naturavya – Premium Ayurvedic & Herbal Wellness in Indore
+          </h2>
+          <p className="text-lg leading-relaxed text-muted-foreground">
+            Welcome to <strong>Naturavya</strong>, India’s trusted destination for 100% safe, 
+            Ayurvedic, and herbal solutions. Based in <strong>Indore (Bada Ganpati)</strong>, 
+            we specialize in formulating premium wellness products that combine ancient Vedic 
+            wisdom with modern science. Our mission is simple: to provide effective natural 
+            remedies <strong>without any side effects</strong>.
+          </p>
+        </div>
 
-/* Floating leaves background */
+        {/* Product Specific SEO Keywords */}
+        <div className="grid md:grid-cols-2 gap-8 mb-16">
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-stone-100 hover:shadow-md transition-shadow">
+            <h3 className="text-xl font-bold mb-3 text-primary flex items-center gap-2">
+              <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+              Maxx Boom (Capsules & Gel)
+            </h3>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              Our best-selling <strong>Ayurvedic breast enhancement formula</strong>. Maxx Boom uses natural herbs to promote firmness and toning. A 100% safe, non-surgical solution for women seeking confidence without chemicals.
+            </p>
+          </div>
+
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-stone-100 hover:shadow-md transition-shadow">
+            <h3 className="text-xl font-bold mb-3 text-primary flex items-center gap-2">
+              <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+              Virya Plus (Men's Wellness)
+            </h3>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              Reclaim your energy with <strong>Virya Plus</strong>. Formulated for men's vitality and stamina, this herbal supplement helps overcome weakness and improves physical performance using pure Shilajit and Ashwagandha.
+            </p>
+          </div>
+
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-stone-100 hover:shadow-md transition-shadow">
+            <h3 className="text-xl font-bold mb-3 text-primary flex items-center gap-2">
+              <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+              Zero Ache (Pain Relief Oil)
+            </h3>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              The best natural remedy for <strong>joint pain, arthritis, and back pain</strong>. Zero Ache oil penetrates deep into muscles to provide fast, long-lasting relief. A must-have for elderly care in Indore.
+            </p>
+          </div>
+
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-stone-100 hover:shadow-md transition-shadow">
+            <h3 className="text-xl font-bold mb-3 text-primary flex items-center gap-2">
+              <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+              V-Stiff & Null Pile
+            </h3>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              Specialized care for intimate health. <strong>V-Stiff</strong> gel restores elasticity naturally, while <strong>Null Pile</strong> offers gentle, herbal relief from piles and fissures without surgery.
+            </p>
+          </div>
+        </div>
+
+        {/* Local Business Trust Signals */}
+        <div className="bg-primary/5 rounded-3xl p-8 md:p-12 border border-primary/10">
+          <div className="grid md:grid-cols-3 gap-8 text-center md:text-left">
+            <div className="flex flex-col items-center md:items-start gap-3">
+              <ShieldCheck className="w-10 h-10 text-primary" />
+              <h4 className="font-bold text-lg">100% Safe & Ayurvedic</h4>
+              <p className="text-sm text-muted-foreground">Certified herbal ingredients. Zero side effects guaranteed.</p>
+            </div>
+            <div className="flex flex-col items-center md:items-start gap-3">
+              <MapPin className="w-10 h-10 text-primary" />
+              <h4 className="font-bold text-lg">Indore Based</h4>
+              <p className="text-sm text-muted-foreground">Gopal Nivas Building, Bada Ganpati, Indore, MP 452001.</p>
+            </div>
+            <div className="flex flex-col items-center md:items-start gap-3">
+              <Phone className="w-10 h-10 text-primary" />
+              <h4 className="font-bold text-lg">Expert Support</h4>
+              <p className="text-sm text-muted-foreground">Call us anytime for guidance: <br/><strong>+91 7222959340</strong></p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+/* 2. ANIMATIONS                                                              */
+/* -------------------------------------------------------------------------- */
+
 function FloatingLeavesBackground() {
   const [leaves, setLeaves] = useState<any[]>([])
 
@@ -58,7 +150,6 @@ function FloatingLeavesBackground() {
   )
 }
 
-/* Floating bubbles */
 function FloatingBubbles() {
   const [bubbles, setBubbles] = useState<any[]>([])
 
@@ -92,6 +183,10 @@ function FloatingBubbles() {
     </div>
   )
 }
+
+/* -------------------------------------------------------------------------- */
+/* 3. MAIN HOMEPAGE                                                           */
+/* -------------------------------------------------------------------------- */
 
 export default function HomePage() {
   return (
@@ -169,7 +264,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* RIGHT: IMAGE */}
+          {/* RIGHT: IMAGE - ✅ ALT TEXT TRICK APPLIED BELOW */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -178,7 +273,8 @@ export default function HomePage() {
           >
             <motion.img
               src="/hero-product.png"
-              alt="Naturavya Ayurvedic Wellness Products in India"
+              // 👇 This is the Step 4 "Alt Text Trick" - DO NOT CHANGE THIS LINE
+              alt="Naturavya Herbals - Maxx Boom Breast Enhancement and Virya Plus Vitality Capsules Indore"
               className="w-3/4 md:w-full max-w-md drop-shadow-2xl"
               animate={{ y: [0, -12, 0] }}
               transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
@@ -227,6 +323,10 @@ export default function HomePage() {
       <PromoSlider />
       <FeaturedProducts />
       <IngredientsSection />
+      
+      {/* ✅ ADDED THE SEO CONTENT COMPONENT HERE */}
+      <SeoContent />
+
       <TestimonialsCarousel />
       <CTASection />
 
