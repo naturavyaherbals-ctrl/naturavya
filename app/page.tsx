@@ -142,9 +142,9 @@ export default function HomePage() {
 
             <p className="max-w-2xl text-muted-foreground text-lg mb-10">
               Our Ayurvedic range includes <strong>Virya+ Capsules</strong> for
-              stamina and vitality, <strong>VStiff Gel</strong> for performance
-              support, <strong>MaxBoom Capsules & Gel</strong> for strength and
-              endurance, <strong>NullPile Capsules</strong> for piles wellness,
+              stamina and vitality, <strong>VStiff Gel</strong> for Vaginal Tightness,
+              <strong>MaxBoom Capsules & Gel</strong> for increasing Boobs Size and 
+              Curves, <strong>NullPile Capsules</strong> for piles wellness,
               and <strong>ZeroAche Oil</strong> for joint and muscle comfort.
               All products are crafted with safety, consistency, and customer
               trust at the core.
