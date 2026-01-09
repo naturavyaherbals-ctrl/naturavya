@@ -10,9 +10,21 @@ import Footer from "@/components/footer"
 
 const inter = Inter({ subsets: ["latin"] })
 
+// 👇 UPDATED METADATA SECTION
 export const metadata: Metadata = {
+  metadataBase: new URL("https://naturavya.com"), // 👈 REPLACE with your actual domain if different
   title: "Naturavya Herbals",
   description: "Premium Ayurvedic Wellness",
+  openGraph: {
+    title: "Naturavya Herbals",
+    description: "Premium Ayurvedic Wellness",
+    url: "https://naturavya.com",
+    siteName: "Naturavya",
+    locale: "en_IN",
+    type: "website",
+    // Next.js automatically detects opengraph-image.tsx, 
+    // but defining metadataBase above is required for it to work.
+  },
 }
 
 export default function RootLayout({

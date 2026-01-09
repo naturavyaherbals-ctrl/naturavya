@@ -1,24 +1,17 @@
 "use client"
 
-import { useState, useEffect } from "react" // 👈 Added imports
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Leaf } from "lucide-react"
 import Link from "next/link"
+import SeoSchema from "@/components/seo-schema"
+import FAQSchema from "@/components/faq-schema"
 
-// Components
-import PromoSlider from "@/components/promo-slider"
-import FeaturedProducts from "@/components/featured-products"
-import IngredientsSection from "@/components/ingredients-section"
-import TestimonialsCarousel from "@/components/testimonials-carousel"
-import CTASection from "@/components/cta-section"
-import WhatsAppButton from "@/components/whatsapp-button"
-import { Button } from "@/components/ui/button"
 
-/* Animation: Floating leaves background */
+/* Floating leaves background */
 function FloatingLeavesBackground() {
   const [leaves, setLeaves] = useState<any[]>([])
 
-  // Move randomness to useEffect (Client-side only)
   useEffect(() => {
     const generatedLeaves = Array.from({ length: 12 }).map((_, i) => ({
       id: i,
@@ -38,15 +31,8 @@ function FloatingLeavesBackground() {
         <motion.div
           key={leaf.id}
           className="absolute text-primary/20"
-          initial={{
-            y: leaf.initialY,
-            x: leaf.initialX,
-            rotate: leaf.rotate,
-          }}
-          animate={{
-            y: "110vh",
-            rotate: 360,
-          }}
+          initial={{ y: leaf.initialY, x: leaf.initialX, rotate: leaf.rotate }}
+          animate={{ y: "110vh", rotate: 360 }}
           transition={{
             duration: leaf.duration,
             repeat: Infinity,
@@ -62,11 +48,10 @@ function FloatingLeavesBackground() {
   )
 }
 
-/* Animation: Soft bubbles */
+/* Floating bubbles */
 function FloatingBubbles() {
   const [bubbles, setBubbles] = useState<any[]>([])
 
-  // Move randomness to useEffect (Client-side only)
   useEffect(() => {
     const generatedBubbles = Array.from({ length: 14 }).map((_, i) => ({
       id: i,
@@ -83,11 +68,7 @@ function FloatingBubbles() {
         <motion.div
           key={bubble.id}
           className="absolute rounded-full bg-primary/10 blur-xl"
-          style={{
-            width: 120,
-            height: 120,
-            left: bubble.left,
-          }}
+          style={{ width: 120, height: 120, left: bubble.left }}
           initial={{ y: "110vh", opacity: 0 }}
           animate={{ y: "-20vh", opacity: 1 }}
           transition={{
@@ -105,8 +86,12 @@ function FloatingBubbles() {
 export default function HomePage() {
   return (
     <main className="relative overflow-hidden">
-      
-      {/* Hero Section */}
+
+      {/* ✅ SEO SCHEMA (CRITICAL) */}
+      <SeoSchema />
+      <FAQSchema />
+
+      {/* ================= HERO SECTION ================= */}
       <section className="relative pt-32 pb-24 px-4">
         <FloatingLeavesBackground />
         <FloatingBubbles />
@@ -117,28 +102,48 @@ export default function HomePage() {
           transition={{ duration: 0.8, ease: "easeOut" }}
           className="relative z-10 max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 items-center"
         >
-          
-          {/* LEFT: Text Content */}
+
+          {/* LEFT: SEO + LOCAL CONTENT */}
           <div className="flex flex-col items-center text-center lg:items-start lg:text-left order-2 lg:order-1">
             <span className="inline-block mb-4 text-sm tracking-wider text-primary">
-              AYURVEDIC WELLNESS FOR INDIA
+              TRUSTED AYURVEDIC WELLNESS BRAND IN INDIA
             </span>
 
             <h1 className="text-4xl md:text-6xl font-light leading-tight mb-6">
-              Pure Ayurvedic Wellness by{" "}
+              Ayurvedic Sexual Wellness & Vitality Solutions by{" "}
               <span className="text-primary font-medium">Naturavya</span>
             </h1>
 
+            <p className="max-w-2xl text-muted-foreground text-lg mb-6">
+              Naturavya Herbals is a premium Indian Ayurvedic wellness brand
+              offering natural solutions for male sexual wellness, stamina,
+              vitality, joint comfort, and digestive balance. Our formulations
+              are inspired by classical Ayurveda and developed for modern Indian
+              lifestyles using carefully selected herbal ingredients.
+            </p>
+
+            <p className="max-w-2xl text-muted-foreground text-lg mb-6">
+              Serving customers across India, Naturavya focuses on long-term
+              wellness rather than instant results. Our products are commonly
+              chosen by individuals looking for Ayurvedic support for male
+              performance, confidence, energy levels, piles care, and muscle
+              comfort — without harmful chemicals or synthetic compounds.
+            </p>
+
             <p className="max-w-2xl text-muted-foreground text-lg mb-10">
-              India’s modern Ayurvedic wellness brand — crafted for strength,
-              balance, vitality and intimate health using time-tested herbs and
-              scientific precision.
+              Our Ayurvedic range includes <strong>Virya+ Capsules</strong> for
+              stamina and vitality, <strong>VStiff Gel</strong> for performance
+              support, <strong>MaxBoom Capsules & Gel</strong> for strength and
+              endurance, <strong>NullPile Capsules</strong> for piles wellness,
+              and <strong>ZeroAche Oil</strong> for joint and muscle comfort.
+              All products are crafted with safety, consistency, and customer
+              trust at the core.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4">
               <Link href="/categories">
                 <Button size="lg" className="rounded-full px-10 h-12 text-lg">
-                  Shop Products
+                  Shop Ayurvedic Products
                 </Button>
               </Link>
 
@@ -148,13 +153,13 @@ export default function HomePage() {
                   variant="outline"
                   className="rounded-full px-10 h-12 text-lg"
                 >
-                  Our Ayurveda
+                  Learn About Our Ayurveda
                 </Button>
               </Link>
             </div>
           </div>
 
-          {/* RIGHT: Hero Image */}
+          {/* RIGHT: IMAGE */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -163,49 +168,61 @@ export default function HomePage() {
           >
             <motion.img
               src="/hero-product.png"
-              alt="Naturavya Ayurvedic Products"
+              alt="Naturavya Ayurvedic Wellness Products in India"
               className="w-3/4 md:w-full max-w-md drop-shadow-2xl"
               animate={{ y: [0, -12, 0] }}
               transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
             />
           </motion.div>
-
         </motion.div>
       </section>
 
-      {/* Trust Badges */}
+      {/* ================= TRUST & LOCAL EEAT ================= */}
       <section className="py-20 px-4 bg-muted/40">
         <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-10 text-center">
           <div>
-            <h3 className="text-xl font-medium mb-2">100% Ayurvedic</h3>
+            <h2 className="text-xl font-medium mb-2">
+              Authentic Indian Ayurveda
+            </h2>
             <p className="text-muted-foreground">
-              Rooted in authentic Indian Ayurveda and herbal wisdom.
+              Developed using traditional Ayurvedic knowledge combined with
+              modern quality standards, ensuring purity and consistency.
             </p>
           </div>
+
           <div>
-            <h3 className="text-xl font-medium mb-2">Luxury Formulations</h3>
+            <h2 className="text-xl font-medium mb-2">
+              Premium Herbal Ingredients
+            </h2>
             <p className="text-muted-foreground">
-              Premium quality ingredients, processed with precision.
+              High-quality herbs sourced and processed to support male wellness,
+              vitality, digestive balance, and physical comfort naturally.
             </p>
           </div>
+
           <div>
-            <h3 className="text-xl font-medium mb-2">Safe & Trusted</h3>
+            <h2 className="text-xl font-medium mb-2">
+              Trusted by Customers Across India
+            </h2>
             <p className="text-muted-foreground">
-              Designed for long-term wellness across all age groups.
+              Naturavya is chosen by individuals nationwide who prefer natural,
+              Ayurvedic alternatives for everyday wellness and long-term health
+              support.
             </p>
           </div>
         </div>
       </section>
 
-      {/* Other Sections */}
+      {/* EXISTING SECTIONS */}
       <PromoSlider />
       <FeaturedProducts />
       <IngredientsSection />
       <TestimonialsCarousel />
       <CTASection />
-      
-      {/* WhatsApp Button */}
+
       <WhatsAppButton />
     </main>
   )
 }
+
+
