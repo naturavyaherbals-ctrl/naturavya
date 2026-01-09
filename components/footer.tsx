@@ -18,16 +18,16 @@ import { createClient } from "@/app/lib/supabase/server"
 const footerLinks = {
   categories: [
     { label: "Men's Wellness (Virya+)", href: "/categories/mens-wellness" },
-    { label: "Breast Care (Maxx Boom)", href: "/categories/breast-care" },
-    { label: "Joint Pain Relief", href: "/categories/pain-relief" },
-    { label: "Intimate Wellness", href: "/categories/intimate-wellness" },
-    { label: "Piles Care (Null Pile)", href: "/categories/piles-care" },
+    { label: "Breast Care (Maxx Boom)", href: "/categories/womens-wellness" },
+    { label: "Joint Pain Relief", href: "/categories/general-health" },
+    { label: "Intimate Wellness", href: "/categories/womens-wellness" },
+    { label: "Piles Care (Null Pile)", href: "/categories/general-health" },
   ],
   popularProducts: [
-    { label: "Maxx Boom Capsules", href: "/products/maxx-boom-combo" },
+    { label: "Maxx Boom Capsules", href: "/products/maxboom" },
     { label: "Virya Plus Vitality", href: "/products/virya-plus" },
-    { label: "Zero Ache Oil", href: "/products/zero-ache-oil" },
-    { label: "V-Stiff Gel", href: "/products/v-stiff-gel" },
+    { label: "Zero Ache Oil", href: "/products/zeroache" },
+    { label: "V-Stiff Gel", href: "/products/v-stiff" },
   ],
   company: [
     { label: "About Naturavya", href: "/about" },
@@ -172,3 +172,4 @@ export default async function Footer() {
     </footer>
   )
 }
+
