@@ -35,15 +35,15 @@ function LuxuryGoldDust() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* 2. PARALLAX WRAPPER (THE CORE FIX)                                         */
+/* 2. PARALLAX WRAPPER (MOBILE SMOOTHNESS FIX)                                */
 /* -------------------------------------------------------------------------- */
 
-// STRICT PARALLAX: Every section sticks to the top. 
-// Increasing Z-Index allows them to stack perfectly.
+// FIX: Added stronger shadow and border-t to make the "stacking" obvious on phone.
+// sticky top-0 ensures it waits until it hits the top before the next one covers it.
 function ParallaxSection({ children, className = "", zIndex = 0 }: { children: React.ReactNode, className?: string, zIndex?: number }) {
   return (
     <div 
-      className={`sticky top-0 min-h-screen flex flex-col justify-center overflow-hidden shadow-[0_-10px_50px_-20px_rgba(0,0,0,0.15)] border-t border-black/5 ${className}`} 
+      className={`sticky top-0 min-h-[100dvh] flex flex-col justify-center overflow-hidden shadow-[0_-5px_40px_-10px_rgba(0,0,0,0.1)] border-t border-black/5 ${className}`} 
       style={{ zIndex }}
     >
       {children}
@@ -75,11 +75,11 @@ function LuxuryHeroProduct() {
     <motion.div
       onMouseMove={handleMouseMove}
       onMouseLeave={() => { x.set(0); y.set(0) }}
-      // Adjusted width for mobile to ensure badges fit
       className="relative w-[280px] sm:w-[350px] md:w-[450px] aspect-square cursor-pointer group z-20 mx-auto"
       style={{ perspective: 1000 }}
     >
       <motion.div style={{ rotateX, rotateY, transformStyle: "preserve-3d" }} className="relative w-full h-full">
+        {/* Glow */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100%] h-[100%] bg-amber-400/20 rounded-full blur-[60px] md:blur-[80px]" />
         
         {/* MAIN PRODUCT IMAGE (Z-Index 10) */}
@@ -178,14 +178,14 @@ function BottomMarquee() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* SECTION 1: HERO (Sticky)                                                   */
+/* SECTION 1: HERO (Sticky, Z-10)                                             */
 /* -------------------------------------------------------------------------- */
 
 function LuxuryHeroSection() {
   return (
     <ParallaxSection className="bg-[#fdfbf7]" zIndex={10}>
       
-      {/* TOP MARQUEE (Pushed down slightly to clear navbar) */}
+      {/* TOP MARQUEE */}
       <div className="mt-28 mb-8">
         <TopMarquee />
       </div>
@@ -251,12 +251,12 @@ function LuxuryHeroSection() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* SECTION 2: THE MANIFESTO                                                   */
+/* SECTION 2: THE MANIFESTO (Sticky, Z-20)                                    */
 /* -------------------------------------------------------------------------- */
 
 function LuxuryManifesto() {
   return (
-    <ParallaxSection className="bg-[#fffefc] shadow-[0_-50px_50px_-20px_rgba(0,0,0,0.1)]" zIndex={20}>
+    <ParallaxSection className="bg-[#fffefc]" zIndex={20}>
       <div className="max-w-4xl mx-auto px-6 text-center py-32">
         <Crown size={32} className="text-amber-400 mx-auto mb-8" strokeWidth={1} />
         
@@ -281,7 +281,7 @@ function LuxuryManifesto() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* SECTION 3: RARE INGREDIENTS                                                */
+/* SECTION 3: RARE INGREDIENTS (Sticky, Z-30)                                 */
 /* -------------------------------------------------------------------------- */
 
 function IngredientCard({ title, desc, icon: Icon }: any) {
@@ -304,7 +304,7 @@ function IngredientCard({ title, desc, icon: Icon }: any) {
 
 function RareIngredients() {
   return (
-    <ParallaxSection className="bg-[#fdfbf7]" zIndex={25}>
+    <ParallaxSection className="bg-[#fdfbf7]" zIndex={30}>
       <div className="max-w-7xl mx-auto px-6 py-32">
         <div className="text-center mb-20">
            <span className="text-amber-600 font-bold tracking-[0.3em] uppercase text-[10px] mb-3 block">The Source</span>
@@ -334,7 +334,7 @@ function RareIngredients() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* SECTION 4: LUXURY COLLECTION                                               */
+/* SECTION 4: LUXURY COLLECTION (Sticky, Z-40)                                */
 /* -------------------------------------------------------------------------- */
 
 function LuxuryCollection() {
@@ -345,7 +345,7 @@ function LuxuryCollection() {
   ]
 
   return (
-    <ParallaxSection className="bg-[#fdfbf7]" zIndex={30}>
+    <ParallaxSection className="bg-[#fdfbf7]" zIndex={40}>
       <div className="max-w-[80rem] mx-auto px-6 py-32">
         <div className="flex flex-col md:flex-row justify-between items-end mb-16 border-b border-emerald-900/5 pb-8">
            <div>
@@ -377,8 +377,8 @@ function LuxuryCollection() {
                   <div className="p-8 bg-white border-t border-gray-50 flex-grow flex flex-col justify-between">
                      <div>
                         <div className="flex justify-between items-baseline mb-2">
-                            <h3 className="text-2xl font-serif text-emerald-950">{product.name}</h3>
-                            <span className="text-sm font-bold text-amber-700 bg-amber-50 px-3 py-1 rounded-full">₹{product.price}</span>
+                            <h3 className="text-lg md:text-2xl font-serif text-emerald-950">{product.name}</h3>
+                            <span className="text-xs md:text-sm font-bold text-amber-700 bg-amber-50 px-3 py-1 rounded-full">₹{product.price}</span>
                         </div>
                         <p className="text-emerald-900/50 text-xs line-clamp-2 mb-4">{product.desc}</p>
                      </div>
@@ -396,24 +396,24 @@ function LuxuryCollection() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* SECTION 5: TRUST & AUTHORITY                                               */
+/* SECTION 5: TRUST & AUTHORITY (Sticky, Z-50)                                */
 /* -------------------------------------------------------------------------- */
 
 function TrustAuthority() {
   return (
-    <ParallaxSection className="bg-[#0c1a16] text-amber-50" zIndex={35}>
+    <ParallaxSection className="bg-[#0c1a16] text-amber-50" zIndex={50}>
        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-emerald-500/5 rounded-full blur-[100px] pointer-events-none" />
 
-       <div className="max-w-6xl mx-auto px-6 relative z-10 grid lg:grid-cols-2 gap-20 items-center py-32">
-          <div>
+       <div className="max-w-6xl mx-auto px-4 md:px-6 relative z-10 grid lg:grid-cols-2 gap-12 md:gap-20 items-center py-20 md:py-32">
+          <div className="text-center lg:text-left">
              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-amber-500/30 mb-6">
                 <UserCheck size={12} className="text-amber-500" />
                 <span className="text-[10px] font-bold uppercase tracking-widest text-amber-100">Vaidya Approved</span>
              </div>
-             <h2 className="text-4xl lg:text-5xl font-serif font-light leading-tight mb-8">
+             <h2 className="text-3xl md:text-4xl lg:text-5xl font-serif font-light leading-tight mb-6 md:mb-8">
                Science Meets <span className="italic text-white/50">Tradition.</span>
              </h2>
-             <div className="space-y-6 text-lg text-white/60 font-light leading-loose">
+             <div className="space-y-6 text-base md:text-lg text-white/60 font-light leading-loose">
                <p>
                  Naturavya is a collective of Ayurvedic practitioners and modern scientists. We don't just guess; we verify.
                </p>
@@ -421,25 +421,25 @@ function TrustAuthority() {
                  Every bottle of <strong>Null Pile</strong> or <strong>Virya Plus</strong> passes through rigorous checkpoints. From soil testing to the final GMP-certified bottling, purity is our obsession.
                </p>
              </div>
-             <div className="mt-12 flex gap-12 border-t border-white/10 pt-8">
+             <div className="mt-8 md:mt-12 flex justify-center lg:justify-start gap-8 md:gap-12 border-t border-white/10 pt-8">
                <div>
-                  <div className="text-4xl font-serif text-amber-400 mb-1">100%</div>
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-white/40">Herbal Actives</div>
+                  <div className="text-3xl md:text-4xl font-serif text-amber-400 mb-1">100%</div>
+                  <div className="text-[8px] md:text-[10px] font-bold uppercase tracking-widest text-white/40">Herbal Actives</div>
                </div>
                <div>
-                  <div className="text-4xl font-serif text-amber-400 mb-1">0%</div>
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-white/40">Steroids / Toxins</div>
+                  <div className="text-3xl md:text-4xl font-serif text-amber-400 mb-1">0%</div>
+                  <div className="text-[8px] md:text-[10px] font-bold uppercase tracking-widest text-white/40">Steroids / Toxins</div>
                </div>
              </div>
           </div>
           
-          <div className="relative">
-             <div className="aspect-[3/4] rounded-[3rem] bg-[#12241f] border border-white/5 overflow-hidden relative shadow-2xl flex items-center justify-center">
-                <Microscope size={120} className="text-white/10" strokeWidth={0.5} />
+          <div className="relative px-4 md:px-0">
+             <div className="aspect-[3/4] rounded-[2rem] md:rounded-[3rem] bg-[#12241f] border border-white/5 overflow-hidden relative shadow-2xl flex items-center justify-center">
+                <Microscope size={100} className="text-white/10 md:w-[120px] md:h-[120px]" strokeWidth={0.5} />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0c1a16] via-transparent to-transparent" />
-                <div className="absolute bottom-12 left-10 z-20">
-                   <p className="text-2xl font-serif text-white mb-2">Clinical Precision</p>
-                   <p className="text-xs text-amber-400 uppercase tracking-widest">Lab Tested for Safety</p>
+                <div className="absolute bottom-8 left-8 md:bottom-12 md:left-10 z-20">
+                   <p className="text-xl md:text-2xl font-serif text-white mb-2">Clinical Precision</p>
+                   <p className="text-[10px] md:text-xs text-amber-400 uppercase tracking-widest">Lab Tested for Safety</p>
                 </div>
              </div>
           </div>
@@ -449,7 +449,7 @@ function TrustAuthority() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* SECTION 6: TESTIMONIALS                                                    */
+/* SECTION 6: TESTIMONIALS (Sticky, Z-60)                                     */
 /* -------------------------------------------------------------------------- */
 
 function TestimonialsSection() {
@@ -460,20 +460,20 @@ function TestimonialsSection() {
   ]
 
   return (
-    <ParallaxSection className="bg-[#fdfbf7]" zIndex={40}>
-      <div className="max-w-7xl mx-auto px-6 py-32">
-        <div className="text-center mb-16">
-          <Quote className="w-8 h-8 text-amber-200 mx-auto mb-6" />
-          <h2 className="text-4xl font-serif text-emerald-950">Voices of <span className="italic text-amber-600">Trust</span></h2>
+    <ParallaxSection className="bg-[#fdfbf7]" zIndex={60}>
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-20 md:py-32">
+        <div className="text-center mb-12 md:mb-16">
+          <Quote className="w-6 h-6 md:w-8 md:h-8 text-amber-200 mx-auto mb-4 md:mb-6" />
+          <h2 className="text-3xl md:text-4xl font-serif text-emerald-950">Voices of <span className="italic text-amber-600">Trust</span></h2>
         </div>
         
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
           {reviews.map((review, i) => (
-            <div key={i} className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-emerald-50 hover:border-amber-100 hover:shadow-xl transition-all duration-300 flex flex-col">
-               <div className="flex gap-1 mb-6">
+            <div key={i} className="bg-white p-8 md:p-10 rounded-[2rem] md:rounded-[2.5rem] shadow-sm border border-emerald-50 hover:border-amber-100 hover:shadow-xl transition-all duration-300 flex flex-col">
+               <div className="flex gap-1 mb-4 md:mb-6">
                  {[...Array(5)].map((_, j) => <Star key={j} size={14} className="text-amber-400 fill-amber-400" />)}
                </div>
-               <p className="text-emerald-900/70 italic mb-8 leading-relaxed flex-grow">"{review.text}"</p>
+               <p className="text-emerald-900/70 italic text-sm md:text-base mb-6 md:mb-8 leading-relaxed flex-grow">"{review.text}"</p>
                <div className="flex items-center gap-4 pt-6 border-t border-gray-50">
                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-100 to-white flex items-center justify-center text-amber-800 font-serif font-bold shadow-sm">
                    {review.name[0]}
@@ -482,7 +482,7 @@ function TestimonialsSection() {
                    <p className="text-sm font-bold text-emerald-950">{review.name}</p>
                    <div className="flex items-center gap-1">
                      <CheckCircle2 size={10} className="text-emerald-600" />
-                     <p className="text-[10px] text-emerald-900/40 uppercase tracking-widest">{review.role}</p>
+                     <p className="text-[9px] md:text-[10px] text-emerald-900/40 uppercase tracking-widest">{review.role}</p>
                    </div>
                  </div>
                </div>
@@ -495,34 +495,34 @@ function TestimonialsSection() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* SECTION 7: CTA SECTION                                                     */
+/* SECTION 7: CTA SECTION (Sticky, Z-70)                                      */
 /* -------------------------------------------------------------------------- */
 
 function LuxuryCTA() {
   return (
-    <ParallaxSection className="bg-[#052e25]" zIndex={50}>
-      <div className="relative h-[80vh] flex flex-col items-center justify-center overflow-hidden px-4">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-emerald-500/10 rounded-full blur-[120px]" />
+    <ParallaxSection className="bg-[#052e25]" zIndex={70}>
+      <div className="relative h-[60vh] md:h-[80vh] flex flex-col items-center justify-center overflow-hidden px-4">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] md:w-[1000px] h-[600px] bg-emerald-500/10 rounded-full blur-[120px]" />
 
         {/* BOTTOM MARQUEE */}
         <BottomMarquee />
 
         <div className="relative z-10 text-center max-w-3xl mx-auto mt-10">
-          <Crown size={48} strokeWidth={0.5} className="text-amber-400 mx-auto mb-8" />
-          <h2 className="text-5xl md:text-7xl font-serif font-light text-amber-50 mb-8">
+          <Crown size={32} strokeWidth={0.5} className="text-amber-400 mx-auto mb-6 md:mb-8 md:w-12 md:h-12" />
+          <h2 className="text-4xl md:text-5xl lg:text-7xl font-serif font-light text-amber-50 mb-6 md:mb-8">
             Elevate Your <span className="italic text-amber-500">Life.</span>
           </h2>
-          <p className="text-xl text-emerald-100/60 max-w-xl mx-auto mb-12 font-light leading-relaxed">
+          <p className="text-lg md:text-xl text-emerald-100/60 max-w-xl mx-auto mb-10 md:mb-12 font-light leading-relaxed">
              Join the elite circle of Naturavya patrons. Experience the transformation today.
           </p>
-          <div className="flex flex-col sm:flex-row gap-6 justify-center">
+          <div className="flex flex-col sm:flex-row gap-4 md:gap-6 justify-center">
             <Link href="/categories">
-              <button className="px-12 py-5 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-full text-sm font-bold uppercase tracking-widest shadow-2xl hover:shadow-amber-500/40 hover:-translate-y-1 transition-all">
+              <button className="w-full sm:w-auto px-10 md:px-12 py-4 md:py-5 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-full text-xs md:text-sm font-bold uppercase tracking-widest shadow-2xl hover:shadow-amber-500/40 hover:-translate-y-1 transition-all">
                  Enter The Sanctuary
               </button>
             </Link>
             <Link href="/contact">
-              <button className="px-12 py-5 bg-transparent border border-white/20 text-white rounded-full text-sm font-bold uppercase tracking-widest hover:bg-white/5 transition-all">
+              <button className="w-full sm:w-auto px-10 md:px-12 py-4 md:py-5 bg-transparent border border-white/20 text-white rounded-full text-xs md:text-sm font-bold uppercase tracking-widest hover:bg-white/5 transition-all">
                  Contact Concierge
               </button>
             </Link>
@@ -539,7 +539,7 @@ function LuxuryCTA() {
 
 export default function LuxuryHomePage() {
   return (
-    <main className="relative bg-[#fdfbf7] text-emerald-950 selection:bg-amber-100 selection:text-amber-900">
+    <main className="relative bg-[#fdfbf7] text-emerald-950 selection:bg-amber-100 selection:text-amber-900 overflow-x-hidden">
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Inter:wght@200;300;400;500;600&display=swap');
         body { font-family: 'Inter', sans-serif; }
