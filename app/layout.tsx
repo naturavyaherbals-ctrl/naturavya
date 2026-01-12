@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
+import Script from "next/script" // 👈 Added Script Import
 import "./globals.css"
 import { CartProvider } from "@/app/context/cart-context"
 import LayoutWrapper from "@/components/layout-wrapper" 
@@ -12,9 +13,13 @@ const inter = Inter({ subsets: ["latin"] })
 
 // 👇 UPDATED METADATA SECTION
 export const metadata: Metadata = {
-  metadataBase: new URL("https://naturavya.com"), // 👈 REPLACE with your actual domain if different
+  metadataBase: new URL("https://naturavya.com"),
   title: "Naturavya Herbals",
   description: "Premium Ayurvedic Wellness",
+  icons: { // 👈 Moved to root (Standard Next.js location)
+    icon: "/icon.png", 
+    apple: "/icon.png", 
+  },
   openGraph: {
     title: "Naturavya Herbals",
     description: "Premium Ayurvedic Wellness",
@@ -22,12 +27,6 @@ export const metadata: Metadata = {
     siteName: "Naturavya",
     locale: "en_IN",
     type: "website",
-    icons: {
-    icon: "/icon.png", // This tells browsers/Google where the icon is
-    apple: "/icon.png", // This is for iPhone/iPad home screen shortcuts
-  },
-    // Next.js automatically detects opengraph-image.tsx, 
-    // but defining metadataBase above is required for it to work.
   },
 }
 
@@ -39,6 +38,24 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
+        
+        {/* 👇 1. Google Tag Manager Source */}
+        <Script
+          strategy="afterInteractive"
+          src="https://www.googletagmanager.com/gtag/js?id=G-DLS6CBDJ89"
+        />
+        
+        {/* 👇 2. Google Analytics Initialization */}
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+
+            gtag('config', 'G-DLS6CBDJ89');
+          `}
+        </Script>
+
         <CartProvider>
           {/* 👇 Pass Navbar and Footer as props */}
           <LayoutWrapper 
