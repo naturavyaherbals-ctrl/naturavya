@@ -1,76 +1,116 @@
+import Script from "next/script"
+
 export default function SeoSchema() {
-  const schema = {
+  const schemaData = {
     "@context": "https://schema.org",
     "@graph": [
+      // Product 1: Maxx Boom
       {
-        "@type": "Organization",
-        "@id": "https://www.naturavya.com/#organization",
-        name: "Naturavya Herbals",
-        url: "https://www.naturavya.com",
-        logo: "https://www.naturavya.com/logo.png",
-        description:
-          "Naturavya is an Indian Ayurvedic wellness brand offering natural solutions for male sexual health, vitality, stamina, piles relief and joint pain using authentic herbal formulations.",
-        sameAs: [
-          "https://www.facebook.com/naturavya",
-          "https://www.instagram.com/naturavya",
-          "https://www.youtube.com/@naturavya",
-        ],
-      },
-
-      {
-        "@type": "WebSite",
-        "@id": "https://www.naturavya.com/#website",
-        url: "https://www.naturavya.com",
-        name: "Naturavya Ayurvedic Wellness",
-        publisher: {
-          "@id": "https://www.naturavya.com/#organization",
+        "@type": "Product",
+        "name": "Maxx Boom Capsules & Gel",
+        "image": "https://naturavya.com/hero-product.png",
+        "description": "Ayurvedic breast enhancement and toning formula. 100% natural herbal ingredients including Shatavari and Ashwagandha.",
+        "brand": {
+          "@type": "Brand",
+          "name": "Naturavya Herbals"
         },
-        inLanguage: "en-IN",
+        "offers": {
+          "@type": "Offer",
+          "url": "https://naturavya.com/shop/maxx-boom",
+          "priceCurrency": "INR",
+          "price": "1499",
+          "availability": "https://schema.org/InStock",
+          "itemCondition": "https://schema.org/NewCondition"
+        },
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.8",
+          "reviewCount": "850"
+        }
       },
-
+      // Product 2: Virya Plus
       {
-        "@type": "ItemList",
-        name: "Naturavya Ayurvedic Products",
-        itemListElement: [
-          {
-            "@type": "Product",
-            name: "Virya+ Capsules",
-            category: "Ayurvedic Male Sexual Wellness",
-          },
-          {
-            "@type": "Product",
-            name: "VStiff Gel",
-            category: "Ayurvedic Performance Gel",
-          },
-          {
-            "@type": "Product",
-            name: "MaxBoom Capsules",
-            category: "Ayurvedic Strength & Vitality",
-          },
-          {
-            "@type": "Product",
-            name: "MaxBoom Gel",
-            category: "Ayurvedic Massage Gel",
-          },
-          {
-            "@type": "Product",
-            name: "NullPile Capsules",
-            category: "Ayurvedic Piles Care",
-          },
-          {
-            "@type": "Product",
-            name: "ZeroAche Oil",
-            category: "Ayurvedic Pain Relief Oil",
-          },
-        ],
+        "@type": "Product",
+        "name": "Virya Plus Vitality Booster",
+        "image": "https://naturavya.com/virya-plus.png",
+        "description": "Premium Ayurvedic vitality supplement for men. Boosts stamina and energy naturally without side effects.",
+        "brand": {
+          "@type": "Brand",
+          "name": "Naturavya Herbals"
+        },
+        "offers": {
+          "@type": "Offer",
+          "url": "https://naturavya.com/shop/virya-plus",
+          "priceCurrency": "INR",
+          "price": "1299",
+          "availability": "https://schema.org/InStock"
+        },
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.9",
+          "reviewCount": "1200"
+        }
       },
-    ],
+      // Product 3: Zero Ache
+      {
+        "@type": "Product",
+        "name": "Zero Ache Pain Relief Oil",
+        "image": "https://naturavya.com/zero-ache.png",
+        "description": "Fast-acting herbal pain relief oil for joint pain, arthritis, and muscle stiffness. Deep penetration formula.",
+        "brand": {
+          "@type": "Brand",
+          "name": "Naturavya Herbals"
+        },
+        "offers": {
+          "@type": "Offer",
+          "url": "https://naturavya.com/shop/zero-ache",
+          "priceCurrency": "INR",
+          "price": "499",
+          "availability": "https://schema.org/InStock"
+        },
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.7",
+          "reviewCount": "450"
+        }
+      },
+      // Local Business Schema (Helps rank in Indore)
+      {
+        "@type": "LocalBusiness",
+        "name": "Naturavya Herbals",
+        "image": "https://naturavya.com/og-home.jpg",
+        "telephone": "+917222959340",
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "Gopal Nivas Building, Bada Ganpati",
+          "addressLocality": "Indore",
+          "addressRegion": "MP",
+          "postalCode": "452001",
+          "addressCountry": "IN"
+        },
+        "priceRange": "₹₹",
+        "openingHoursSpecification": {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday"
+          ],
+          "opens": "10:00",
+          "closes": "20:00"
+        }
+      }
+    ]
   }
 
   return (
-    <script
+    <Script
+      id="product-schema"
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }}
     />
   )
 }
