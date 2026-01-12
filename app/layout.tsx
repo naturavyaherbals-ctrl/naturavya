@@ -22,6 +22,10 @@ export const metadata: Metadata = {
     siteName: "Naturavya",
     locale: "en_IN",
     type: "website",
+    icons: {
+    icon: "/icon.png", // This tells browsers/Google where the icon is
+    apple: "/icon.png", // This is for iPhone/iPad home screen shortcuts
+  },
     // Next.js automatically detects opengraph-image.tsx, 
     // but defining metadataBase above is required for it to work.
   },
