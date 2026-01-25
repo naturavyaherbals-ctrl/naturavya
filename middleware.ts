@@ -1,20 +1,25 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { NextResponse, type NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
-  const { pathname, origin } = request.nextUrl
+  const { pathname } = request.nextUrl;
 
-  // 1. PUBLIC PATHS: Add paths that should NEVER redirect
+  // 1. EXEMPTIONS: List every path that should NEVER be redirected
+  // We include /admin/login specifically to stop the loop
   if (
-    pathname === '/admin/login' || 
+    pathname.startsWith('/admin/login') ||
     pathname.startsWith('/api/auth') ||
-    pathname.startsWith('/_next') || 
-    pathname.includes('.')
+    pathname.startsWith('/_next') ||
+    pathname.includes('.') ||
+    pathname === '/'
   ) {
-    return NextResponse.next()
+    return NextResponse.next();
   }
 
-  let response = NextResponse.next({ request: { headers: request.headers } })
+  // 2. Initialize Supabase
+  let response = NextResponse.next({
+    request: { headers: request.headers },
+  });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,31 +28,34 @@ export async function middleware(request: NextRequest) {
       cookies: {
         get(name: string) { return request.cookies.get(name)?.value },
         set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({ name, value, ...options })
-          response = NextResponse.next({ request: { headers: request.headers } })
-          response.cookies.set({ name, value, ...options })
+          request.cookies.set({ name, value, ...options });
+          response = NextResponse.next({ request: { headers: request.headers } });
+          response.cookies.set({ name, value, ...options });
         },
         remove(name: string, options: CookieOptions) {
-          request.cookies.set({ name, value: '', ...options })
-          response = NextResponse.next({ request: { headers: request.headers } })
-          response.cookies.set({ name, value: '', ...options })
+          request.cookies.set({ name, value: '', ...options });
+          response = NextResponse.next({ request: { headers: request.headers } });
+          response.cookies.set({ name, value: '', ...options });
         },
       },
     }
-  )
+  );
 
-  // Use getUser() here too for consistency with the API
-  const { data: { user } } = await supabase.auth.getUser()
+  // 3. Get User
+  const { data: { user } } = await supabase.auth.getUser();
 
-  // 2. ADMIN PROTECTION
+  // 4. PROTECTION LOGIC
+  // If trying to access /admin and not logged in -> redirect to login
   if (pathname.startsWith('/admin') && !user) {
-    // Break the loop: Ensure we don't redirect if we're already going to login
-    return NextResponse.redirect(`${origin}/admin/login`)
+    const url = request.nextUrl.clone();
+    url.pathname = '/admin/login';
+    return NextResponse.redirect(url);
   }
 
-  return response
+  return response;
 }
 
+// 5. MATCHER: Only run middleware on these specific paths to save performance
 export const config = {
-  matcher: ['/admin/:path*', '/api/admin/:path*'], // Only run on admin routes to be 100% safe
-}
+  matcher: ['/admin/:path*', '/api/admin/:path*'],
+};
