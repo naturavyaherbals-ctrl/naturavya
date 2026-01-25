@@ -4,28 +4,12 @@ import { NextResponse, type NextRequest } from 'next/server';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 1. THE ABSOLUTE BYPASS
-  // If the user is already on the login page, STOP EVERYTHING.
-  // This physically prevents a loop.
-  if (pathname === '/admin/login') {
-    return NextResponse.next();
-  }
-
-  // 2. OTHER EXEMPTIONS
-  if (
-    pathname.startsWith('/api/auth') ||
-    pathname.startsWith('/_next') ||
-    pathname.includes('.') ||
-    pathname === '/'
-  ) {
-    return NextResponse.next();
-  }
-
-  // 3. INITIALIZE SUPABASE
+  // 1. Initial Response
   let response = NextResponse.next({
     request: { headers: request.headers },
   });
 
+  // 2. Initialize Supabase
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -46,20 +30,30 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // 4. CHECK SESSION
+  // 3. Check Session
   const { data: { session } } = await supabase.auth.getSession();
 
-  // 5. PROTECTION LOGIC
-  if (pathname.startsWith('/admin') && !session) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/admin/login';
-    url.search = ''; // Clear search params to avoid loop state
-    return NextResponse.redirect(url);
+  // 4. PROTECT ADMIN ROUTES
+  // Since login is now at /login, we can protect ALL /admin routes safely
+  if (pathname.startsWith('/admin')) {
+    if (!session) {
+      // Redirect unauthenticated users to the new login page
+      const loginUrl = new URL('/login', request.url);
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
+  // 5. REDIRECT IF ALREADY LOGGED IN
+  // If user visits /login but is already logged in, send them to dashboard
+  if (pathname === '/login' && session) {
+    const dashboardUrl = new URL('/admin', request.url);
+    return NextResponse.redirect(dashboardUrl);
   }
 
   return response;
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/api/admin/:path*'],
+  // Only run on admin and login paths to save performance
+  matcher: ['/admin/:path*', '/login'],
 };
