@@ -1,71 +1,48 @@
-import { supabaseServer } from "@/app/lib/supabase/server"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { updateSettings } from "./actions" // Import the action we just made
+'use client';
 
-export default async function SettingsPage() {
-  const supabase = await supabaseServer()
-  
-  // 1. Fetch existing settings so we can show them in the boxes
-  const { data: settings } = await supabase.from("settings").select("*")
+import React from 'react';
+import { Settings } from 'lucide-react';
 
-  // Helper to find the value for a specific key
-  const getValue = (key: string) => settings?.find(s => s.key === key)?.value || ""
-
+export default function SettingsPage() {
   return (
-    <div className="max-w-4xl space-y-8">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Store Settings</h1>
-        <p className="text-muted-foreground">Manage your contact details and social links.</p>
+        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+        <p className="text-gray-500">Configure your store settings</p>
       </div>
 
-      <form action={updateSettings} className="grid gap-6 p-6 border rounded-lg bg-card">
-        
-        {/* General Info */}
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <Label>Store Name</Label>
-            <Input name="store_name" defaultValue={getValue('store_name')} placeholder="Naturavya Herbals" />
+      <div className="bg-white rounded-xl shadow-sm border p-6">
+        <h2 className="font-semibold text-gray-900 mb-4">Store Information</h2>
+        <div className="space-y-4 max-w-lg">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Store Name</label>
+            <input
+              type="text"
+              defaultValue="Naturavya Herbals"
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
+            />
           </div>
-          
-          <div className="space-y-2">
-            <Label>Support Email</Label>
-            <Input name="support_email" defaultValue={getValue('support_email')} placeholder="support@naturavya.com" />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Store Email</label>
+            <input
+              type="email"
+              defaultValue="support@naturavya.com"
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
+            />
           </div>
-
-          <div className="space-y-2">
-            <Label>Phone Number</Label>
-            <Input name="phone" defaultValue={getValue('phone')} placeholder="+91 98765 43210" />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Store Phone</label>
+            <input
+              type="tel"
+              defaultValue="+91-XXXXXXXXXX"
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
+            />
           </div>
-          
-          <div className="space-y-2">
-             <Label>Instagram Link</Label>
-             <Input name="instagram" defaultValue={getValue('instagram')} placeholder="https://instagram.com/..." />
-          </div>
-
-          <div className="space-y-2">
-             <Label>Facebook Link</Label>
-             <Input name="facebook" defaultValue={getValue('facebook')} placeholder="https://facebook.com/..." />
-          </div>
+          <button className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+            Save Changes
+          </button>
         </div>
-
-        {/* Address (New Field) */}
-        <div className="space-y-2">
-          <Label>Store Address</Label>
-          <Textarea 
-            name="address" 
-            defaultValue={getValue('address')} 
-            placeholder="e.g. 123 Wellness Street, Mumbai, India" 
-            rows={3}
-          />
-        </div>
-
-        <div className="pt-4">
-          <Button type="submit" size="lg">Save Changes</Button>
-        </div>
-      </form>
+      </div>
     </div>
-  )
+  );
 }

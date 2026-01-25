@@ -1,11 +1,11 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { createClient } from '@/app/lib/supabase/server'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 export async function createProduct(formData: FormData) {
-  const supabase = await createClient()
+  const supabase = await createServerSupabaseClient()
 
   // 1. Extract Basic Data
   const title = formData.get('title') as string

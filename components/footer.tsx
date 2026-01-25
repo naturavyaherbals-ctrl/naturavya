@@ -10,7 +10,7 @@ import {
   Crown,
   ArrowRight
 } from "lucide-react"
-import { createClient } from "@/app/lib/supabase/server"
+import { createServerSupabaseClient } from "@/app/lib/supabase/server"
 
 const footerLinks = {
   shop: [
@@ -34,7 +34,7 @@ const footerLinks = {
 }
 
 export default async function Footer() {
-  const supabase = await createClient()
+  const supabase = await createServerSupabaseClient()
 
   // 1. Fetch settings (Optional: Wrap in try/catch if table doesn't exist yet)
   let settings: any[] = []

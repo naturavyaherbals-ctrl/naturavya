@@ -1,36 +1,36 @@
-import { cookies } from "next/headers"
-import { createServerClient } from "@supabase/ssr"
+// =====================================================
+// SUPABASE SERVER CLIENT
+// =====================================================
 
-export async function createClient() {
-  // Await the cookie store (required for Next.js 15+)
-  const cookieStore = await cookies()
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
-  // console.log("Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL) // You can comment this out to keep logs clean
+export async function createServerSupabaseClient() {
+  const cookieStore = await cookies();
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    // Use ANON key, not Service Role key
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return cookieStore.getAll()
+        get(name: string) {
+          return cookieStore.get(name)?.value;
         },
-        setAll(cookiesToSet) {
+        set(name: string, value: string, options: CookieOptions) {
           try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          } catch {
-            // The `setAll` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
+            cookieStore.set({ name, value, ...options });
+          } catch (error) {
+            // Handle cookie setting in Server Components
+          }
+        },
+        remove(name: string, options: CookieOptions) {
+          try {
+            cookieStore.delete({ name, ...options });
+          } catch (error) {
+            // Handle cookie removal in Server Components
           }
         },
       },
     }
-  )
+  );
 }
-
-// 👇 THIS IS THE FIX: Export the alias so Admin pages work
-export const supabaseServer = createClient;

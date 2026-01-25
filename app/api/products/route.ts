@@ -1,21 +1,31 @@
-import { NextResponse } from "next/server"
-import { createClient } from "@/app/lib/supabase/server"
+import { NextRequest, NextResponse } from 'next/server';
+import { productService } from '@/lib/services/productService';
 
-export async function GET() {
-  // 1. Initialize Supabase
-  const supabase = await createClient()
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    
+    // Check if called from Admin (usually by a header or param)
+    const isAdmin = searchParams.get('admin') === 'true';
 
-  // 2. Fetch products (adjust 'products' if your table name is different)
-  const { data: products, error } = await supabase
-    .from("products")
-    .select("*")
-    .order('created_at', { ascending: false })
+    const filters = {
+      search: searchParams.get('search') || undefined,
+      categoryId: searchParams.get('categoryId') || undefined,
+      page: parseInt(searchParams.get('page') || '1'),
+      limit: parseInt(searchParams.get('limit') || '12'),
+      // If admin, don't filter by active. If shop, only show active.
+      isActive: isAdmin ? undefined : true 
+    };
 
-  // 3. Handle errors
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    const { products, total } = await productService.getProducts(filters);
+
+    return NextResponse.json({
+      success: true,
+      products,
+      total,
+      totalPages: Math.ceil(total / filters.limit),
+    });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: 'Internal Error' }, { status: 500 });
   }
-
-  // 4. Return data
-  return NextResponse.json(products)
 }

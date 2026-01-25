@@ -1,182 +1,326 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
-import { Plus, Edit2, Trash2, Upload, X, Loader2, ImageIcon, Layers } from 'lucide-react'
+import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
+import {
+  FolderTree,
+  Plus,
+  Edit,
+  Trash2,
+  Check,
+  X,
+  Loader2,
+  ImageIcon
+} from 'lucide-react';
+import { DataTable } from '@/components/admin/DataTable';
 
-// Initialize Supabase
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-const supabase = createClient(supabaseUrl!, supabaseKey!)
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  image_url: string | null;
+  is_active: boolean;
+  display_order: number;
+}
 
 export default function CategoriesPage() {
-  const [categories, setCategories] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Form State
-  const [uploading, setUploading] = useState(false)
-  const [editingId, setEditingId] = useState<number | null>(null)
   const [formData, setFormData] = useState({
     name: '',
-    image_url: '',
-    product_count: 0
-  })
-
-  // Fetch Data
-  const fetchCategories = async () => {
-    setLoading(true)
-    const { data, error } = await supabase
-      .from('categories')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    if (error) console.error('Error:', error)
-    else setCategories(data || [])
-    setLoading(false)
-  }
+    description: '',
+    imageUrl: '',
+    isActive: true,
+    displayOrder: 0,
+  });
 
   useEffect(() => {
-    fetchCategories()
-  }, [])
+    fetchCategories();
+  }, []);
 
-  // Handle Image Upload
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return
-
-    setUploading(true)
-    const file = e.target.files[0]
-    const fileExt = file.name.split('.').pop()
-    const fileName = `${Date.now()}.${fileExt}`
-    const filePath = fileName
-
-    const { error: uploadError } = await supabase.storage
-      .from('categories')
-      .upload(filePath, file)
-
-    if (uploadError) {
-      alert('Upload failed: ' + uploadError.message)
-      setUploading(false)
-      return
+  const fetchCategories = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/categories?activeOnly=false');
+      const data = await response.json();
+      if (data.success) {
+        setCategories(data.categories || []);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    const { data } = supabase.storage.from('categories').getPublicUrl(filePath)
-    setFormData({ ...formData, image_url: data.publicUrl })
-    setUploading(false)
-  }
-
-  // Submit Form
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (editingId) {
-      // Update
-      const { error } = await supabase
-        .from('categories')
-        .update(formData)
-        .eq('id', editingId)
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      const url = editingCategory 
+        ? `/api/categories/${editingCategory.id}`
+        : '/api/categories';
       
-      if (!error) {
-        setCategories(categories.map(c => c.id === editingId ? { ...c, ...formData } : c))
-        closeModal()
-      }
-    } else {
-      // Create
-      const { data, error } = await supabase
-        .from('categories')
-        .insert([formData])
-        .select()
+      const method = editingCategory ? 'PUT' : 'POST';
 
-      if (!error && data) {
-        setCategories([data[0], ...categories])
-        closeModal()
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setShowModal(false);
+        setEditingCategory(null);
+        resetForm();
+        fetchCategories();
+      } else {
+        alert(data.error || 'Operation failed');
       }
+    } catch (error) {
+      console.error('Submit error:', error);
+      alert('An error occurred');
+    } finally {
+      setIsSubmitting(false);
     }
-  }
+  };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure?')) return
-    const { error } = await supabase.from('categories').delete().eq('id', id)
-    if (!error) setCategories(categories.filter(c => c.id !== id))
-  }
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure? This might affect products linked to this category.')) return;
 
-  // Modal Controls
-  const openEdit = (cat: any) => {
-    setEditingId(cat.id)
-    setFormData({ name: cat.name, image_url: cat.image_url || '', product_count: cat.product_count || 0 })
-    setIsModalOpen(true)
-  }
+    try {
+      const response = await fetch(`/api/categories/${id}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        fetchCategories();
+      } else {
+        alert('Failed to delete category');
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+    }
+  };
 
-  const openCreate = () => {
-    setEditingId(null)
-    setFormData({ name: '', image_url: '', product_count: 0 })
-    setIsModalOpen(true)
-  }
+  const handleEdit = (category: Category) => {
+    setEditingCategory(category);
+    setFormData({
+      name: category.name,
+      description: category.description || '',
+      imageUrl: category.image_url || '',
+      isActive: category.is_active,
+      displayOrder: category.display_order,
+    });
+    setShowModal(true);
+  };
 
-  const closeModal = () => setIsModalOpen(false)
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      description: '',
+      imageUrl: '',
+      isActive: true,
+      displayOrder: 0,
+    });
+  };
+
+  const columns = [
+    {
+      key: 'image',
+      header: 'Image',
+      render: (cat: Category) => (
+        <div className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
+          {cat.image_url ? (
+            <Image 
+              src={cat.image_url} 
+              alt={cat.name} 
+              width={40} 
+              height={40} 
+              className="object-cover w-full h-full"
+            />
+          ) : (
+            <ImageIcon className="w-5 h-5 text-gray-400" />
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'name',
+      header: 'Name',
+      sortable: true,
+      render: (cat: Category) => (
+        <div>
+          <p className="font-medium text-gray-900">{cat.name}</p>
+          <p className="text-xs text-gray-500">/{cat.slug}</p>
+        </div>
+      )
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (cat: Category) => (
+        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+          cat.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+        }`}>
+          {cat.is_active ? 'Active' : 'Inactive'}
+        </span>
+      )
+    },
+    {
+      key: 'order',
+      header: 'Order',
+      sortable: true,
+      render: (cat: Category) => <span className="text-gray-600">{cat.display_order}</span>
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (cat: Category) => (
+        <div className="flex gap-2">
+          <button
+            onClick={() => handleEdit(cat)}
+            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+          >
+            <Edit className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => handleDelete(cat.id)}
+            className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      )
+    }
+  ];
 
   return (
-    <div className="p-6 min-h-screen bg-gray-50">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Categories</h1>
-        <button onClick={openCreate} className="flex items-center gap-2 bg-green-700 text-white px-4 py-2 rounded-lg hover:bg-green-800">
-          <Plus size={18} /> Add Category
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Categories</h1>
+          <p className="text-gray-600 mt-1">Manage product categories</p>
+        </div>
+        <button
+          onClick={() => {
+            setEditingCategory(null);
+            resetForm();
+            setShowModal(true);
+          }}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+        >
+          <Plus className="w-4 h-4" />
+          Add Category
         </button>
       </div>
 
-      {loading ? <div className="text-center py-10">Loading...</div> : (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          {categories.map((cat) => (
-            <div key={cat.id} className="bg-white rounded-xl shadow-sm border p-4">
-              <div className="h-32 bg-gray-100 rounded-lg mb-4 overflow-hidden relative">
-                {cat.image_url ? (
-                  <img src={cat.image_url} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="flex items-center justify-center h-full text-gray-400"><ImageIcon /></div>
-                )}
-              </div>
-              <h3 className="font-bold text-gray-900">{cat.name}</h3>
-              <div className="flex justify-between mt-4 pt-3 border-t">
-                <button onClick={() => openEdit(cat)} className="text-xs font-medium text-blue-600 flex gap-1"><Edit2 size={14}/> Edit</button>
-                <button onClick={() => handleDelete(cat.id)} className="text-xs font-medium text-red-600 flex gap-1"><Trash2 size={14}/> Delete</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      <DataTable
+        columns={columns}
+        data={categories}
+        keyExtractor={(cat) => cat.id}
+        isLoading={isLoading}
+      />
 
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-            <div className="flex justify-between mb-4">
-              <h2 className="text-lg font-bold">{editingId ? 'Edit Category' : 'New Category'}</h2>
-              <button onClick={closeModal}><X size={20} className="text-gray-400" /></button>
+      {/* Add/Edit Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {editingCategory ? 'Edit Category' : 'Add Category'}
+              </h2>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
+
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Image</label>
-                <div className="flex gap-4 items-center">
-                  <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden border">
-                    {uploading ? <Loader2 className="animate-spin m-auto mt-5 text-green-600"/> : 
-                     formData.image_url ? <img src={formData.image_url} className="w-full h-full object-cover"/> : null}
-                  </div>
-                  <label className="cursor-pointer bg-gray-50 border px-3 py-2 rounded text-sm hover:bg-gray-100">
-                    Upload
-                    <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={uploading} />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={3}
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
+                <input
+                  type="url"
+                  value={formData.imageUrl}
+                  onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                  placeholder="https://..."
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Display Order</label>
+                  <input
+                    type="number"
+                    value={formData.displayOrder}
+                    onChange={(e) => setFormData({ ...formData, displayOrder: parseInt(e.target.value) || 0 })}
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+                <div className="flex items-center">
+                  <label className="flex items-center gap-2 cursor-pointer mt-6">
+                    <input
+                      type="checkbox"
+                      checked={formData.isActive}
+                      onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                      className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Active</span>
                   </label>
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Name</label>
-                <input required type="text" className="w-full border rounded-lg p-2" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+
+              <div className="flex gap-3 pt-4 border-t">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex justify-center items-center gap-2"
+                >
+                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                  {editingCategory ? 'Update' : 'Create'}
+                </button>
               </div>
-              <button type="submit" disabled={uploading} className="w-full bg-green-700 text-white py-2 rounded-lg font-medium hover:bg-green-800">
-                {editingId ? 'Save Changes' : 'Create Category'}
-              </button>
             </form>
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }

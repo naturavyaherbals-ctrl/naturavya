@@ -1,250 +1,417 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
-import { Star, ThumbsUp, CheckCircle, XCircle, Trash2, Plus, MessageSquare, User, X } from 'lucide-react'
+import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
+import {
+  Star,
+  Check,
+  X,
+  Eye,
+  Trash2,
+  Plus,
+  Filter,
+  MessageSquare,
+} from 'lucide-react';
+import { formatDateTime } from '@/lib/utils/formatters';
 
-// --- 1. INITIALIZE SUPABASE ---
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-const supabase = createClient(supabaseUrl!, supabaseKey!)
+interface Review {
+  id: string;
+  customer_name: string;
+  customer_email: string | null;
+  customer_location: string | null;
+  rating: number;
+  title: string | null;
+  content: string;
+  status: 'pending' | 'approved' | 'rejected' | 'featured';
+  is_featured: boolean;
+  is_verified_purchase: boolean;
+  source: string;
+  created_at: string;
+  product?: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+}
 
 export default function ReviewsPage() {
-  const [reviews, setReviews] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('All')
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedReview, setSelectedReview] = useState<Review | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Form State
   const [formData, setFormData] = useState({
-    customer_name: '',
+    customerName: '',
+    customerEmail: '',
+    customerLocation: '',
     rating: 5,
-    comment: '',
-    helpful_count: 0,
-    status: 'Approved' 
-  })
-
-  // --- 2. FETCH DATA ---
-  const fetchReviews = async () => {
-    setLoading(true)
-    const { data, error } = await supabase
-      .from('reviews')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    if (error) console.error('Error:', error)
-    else setReviews(data || [])
-    setLoading(false)
-  }
+    title: '',
+    content: '',
+    productId: '',
+    isVerifiedPurchase: false,
+    isFeatured: false,
+    showOnHomepage: false,
+  });
 
   useEffect(() => {
-    fetchReviews()
-  }, [])
+    fetchReviews();
+  }, [statusFilter]);
 
-  // --- 3. ACTIONS ---
+  const fetchReviews = async () => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (statusFilter) params.set('status', statusFilter);
+
+      const response = await fetch(`/api/admin/reviews?${params.toString()}`);
+      const data = await response.json();
+
+      if (data.success) {
+        setReviews(data.reviews);
+      }
+    } catch (err) {
+      console.error('Failed to fetch reviews:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (reviewId: string, status: string) => {
+    try {
+      const response = await fetch(`/api/admin/reviews/${reviewId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+
+      if (response.ok) {
+        fetchReviews();
+      }
+    } catch (err) {
+      console.error('Status update error:', err);
+    }
+  };
+
+  const handleToggleFeatured = async (reviewId: string, isFeatured: boolean) => {
+    try {
+      const response = await fetch(`/api/admin/reviews/${reviewId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          isFeatured: !isFeatured,
+          status: !isFeatured ? 'featured' : 'approved'
+        }),
+      });
+
+      if (response.ok) {
+        fetchReviews();
+      }
+    } catch (err) {
+      console.error('Toggle featured error:', err);
+    }
+  };
+
+  const handleDelete = async (reviewId: string) => {
+    if (!confirm('Are you sure you want to delete this review?')) return;
+
+    try {
+      const response = await fetch(`/api/admin/reviews/${reviewId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        fetchReviews();
+      }
+    } catch (err) {
+      console.error('Delete error:', err);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const { data, error } = await supabase.from('reviews').insert([formData]).select()
-    
-    if (!error && data) {
-      setReviews([data[0], ...reviews])
-      setIsModalOpen(false)
-      setFormData({ customer_name: '', rating: 5, comment: '', helpful_count: 0, status: 'Approved' })
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch('/api/admin/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setShowAddModal(false);
+        resetForm();
+        fetchReviews();
+      } else {
+        alert(data.error || 'Failed to create review');
+      }
+    } catch (err) {
+      console.error('Review creation error:', err);
+      alert('An error occurred. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
-  }
+  };
 
-  const updateStatus = async (id: number, newStatus: string) => {
-    const { error } = await supabase.from('reviews').update({ status: newStatus }).eq('id', id)
-    if (!error) {
-      setReviews(reviews.map(r => r.id === id ? { ...r, status: newStatus } : r))
-    }
-  }
+  const resetForm = () => {
+    setFormData({
+      customerName: '',
+      customerEmail: '',
+      customerLocation: '',
+      rating: 5,
+      title: '',
+      content: '',
+      productId: '',
+      isVerifiedPurchase: false,
+      isFeatured: false,
+      showOnHomepage: false,
+    });
+  };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure?')) return
-    const { error } = await supabase.from('reviews').delete().eq('id', id)
-    if (!error) setReviews(reviews.filter(r => r.id !== id))
-  }
+  const renderStars = (rating: number) => {
+    return (
+      <div className="flex gap-0.5">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star
+            key={star}
+            className={`w-4 h-4 ${
+              star <= rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'
+            }`}
+          />
+        ))}
+      </div>
+    );
+  };
 
-  // Helper to render stars
-  const renderStars = (count: number) => {
-    return [...Array(5)].map((_, i) => (
-      <Star key={i} size={14} className={`${i < count ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
-    ))
-  }
+  const getStatusBadge = (status: string) => {
+    const styles: Record<string, string> = {
+      pending: 'bg-yellow-100 text-yellow-700',
+      approved: 'bg-green-100 text-green-700',
+      rejected: 'bg-red-100 text-red-700',
+      featured: 'bg-purple-100 text-purple-700',
+    };
 
-  const filteredReviews = reviews.filter(r => activeTab === 'All' ? true : r.status === activeTab)
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status] || 'bg-gray-100 text-gray-700'}`}>
+        {status.charAt(0).toUpperCase() + status.slice(1)}
+      </span>
+    );
+  };
 
   return (
-    <div className="p-6 min-h-screen bg-gray-50">
-      
-      {/* HEADER SECTION WITH ADD BUTTON */}
-      <div className="flex justify-between items-center mb-8">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Reviews & Feedback</h1>
-          <p className="text-gray-500 text-sm">Manage customer testimonials</p>
+          <h1 className="text-2xl font-bold text-gray-900">Reviews Management</h1>
+          <p className="text-gray-600 mt-1">Manage customer reviews and testimonials</p>
         </div>
-        
-        {/* --- THIS IS THE ADD BUTTON --- */}
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 bg-green-700 hover:bg-green-800 text-white px-5 py-2.5 rounded-lg shadow-sm font-medium transition-all"
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
         >
-          <Plus size={18} /> Add Manual Review
+          <Plus className="w-4 h-4" />
+          Add Review
         </button>
       </div>
 
-      {/* STATS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="bg-blue-100 p-3 rounded-full text-blue-600"><MessageSquare size={20} /></div>
-          <div>
-            <p className="text-xs font-bold text-gray-400 uppercase">Total Reviews</p>
-            <p className="text-2xl font-bold text-gray-900">{reviews.length}</p>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="bg-yellow-100 p-3 rounded-full text-yellow-600"><Star size={20} /></div>
-          <div>
-            <p className="text-xs font-bold text-gray-400 uppercase">Avg Rating</p>
-            <p className="text-2xl font-bold text-gray-900">
-              {reviews.length > 0 ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1) : '0.0'}
-            </p>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
-          <div className="bg-orange-100 p-3 rounded-full text-orange-600"><User size={20} /></div>
-          <div>
-            <p className="text-xs font-bold text-gray-400 uppercase">Pending Approval</p>
-            <p className="text-2xl font-bold text-gray-900">{reviews.filter(r => r.status === 'Pending').length}</p>
-          </div>
-        </div>
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        {['all', 'pending', 'approved', 'featured'].map((status) => {
+          const count = status === 'all' 
+            ? reviews.length 
+            : reviews.filter(r => r.status === status).length;
+          
+          return (
+            <button
+              key={status}
+              onClick={() => setStatusFilter(status === 'all' ? '' : status)}
+              className={`bg-white rounded-xl shadow-sm p-6 text-left transition-all ${
+                (statusFilter === status || (status === 'all' && !statusFilter))
+                  ? 'ring-2 ring-green-500'
+                  : 'hover:shadow-md'
+              }`}
+            >
+              <p className="text-sm text-gray-600 capitalize">{status} Reviews</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{count}</p>
+            </button>
+          );
+        })}
       </div>
 
-      {/* TABS */}
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-        {['All', 'Pending', 'Approved', 'Rejected'].map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors border ${
-              activeTab === tab 
-                ? 'bg-gray-900 text-white border-gray-900' 
-                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      {/* REVIEWS LIST */}
-      <div className="space-y-4">
-        {loading ? (
-          <div className="text-center py-12 text-gray-500">Loading reviews...</div>
-        ) : filteredReviews.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-xl border border-dashed">
-            <p className="text-gray-500">No reviews found in "{activeTab}"</p>
+      {/* Reviews List */}
+      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        {isLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : reviews.length === 0 ? (
+          <div className="p-12 text-center">
+            <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500">No reviews found</p>
           </div>
         ) : (
-          filteredReviews.map((review) => (
-            <div key={review.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-6 items-start hover:shadow-md transition-shadow">
-              
-              {/* Avatar */}
-              <div className="flex-shrink-0">
-                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 font-bold text-lg border border-gray-200">
-                  {review.customer_name.charAt(0)}
-                </div>
-              </div>
-
-              {/* Content */}
-              <div className="flex-grow w-full">
-                <div className="flex flex-wrap justify-between items-start mb-2">
-                  <div>
-                    <h3 className="font-bold text-gray-900 text-lg">{review.customer_name}</h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="flex">{renderStars(review.rating)}</div>
-                      <span className="text-xs text-gray-400">• {new Date(review.created_at).toLocaleDateString()}</span>
+          <div className="divide-y">
+            {reviews.map((review) => (
+              <div key={review.id} className="p-6 hover:bg-gray-50">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="font-semibold text-gray-900">{review.customer_name}</span>
+                      {renderStars(review.rating)}
+                      {getStatusBadge(review.status)}
+                      {review.is_verified_purchase && (
+                        <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                          Verified Purchase
+                        </span>
+                      )}
+                    </div>
+                    
+                    {review.title && (
+                      <p className="font-medium text-gray-900 mb-1">{review.title}</p>
+                    )}
+                    
+                    <p className="text-gray-600 mb-2">{review.content}</p>
+                    
+                    <div className="flex items-center gap-4 text-sm text-gray-500">
+                      {review.product && (
+                        <span>Product: {review.product.name}</span>
+                      )}
+                      {review.customer_location && (
+                        <span>{review.customer_location}</span>
+                      )}
+                      <span>{formatDateTime(review.created_at)}</span>
+                      <span className="capitalize">{review.source}</span>
                     </div>
                   </div>
-                  <span className={`px-2 py-1 rounded text-xs font-bold uppercase tracking-wide border ${
-                    review.status === 'Approved' ? 'bg-green-50 text-green-700 border-green-200' :
-                    review.status === 'Rejected' ? 'bg-red-50 text-red-700 border-red-200' :
-                    'bg-yellow-50 text-yellow-700 border-yellow-200'
-                  }`}>
-                    {review.status}
-                  </span>
-                </div>
 
-                <p className="text-gray-600 leading-relaxed mb-4 bg-gray-50 p-3 rounded-lg text-sm">
-                  "{review.comment}"
-                </p>
-
-                <div className="flex items-center gap-4 text-sm text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <ThumbsUp size={14} /> {review.helpful_count} people found this helpful
+                  <div className="flex items-center gap-2 ml-4">
+                    {review.status === 'pending' && (
+                      <>
+                        <button
+                          onClick={() => handleStatusChange(review.id, 'approved')}
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
+                          title="Approve"
+                        >
+                          <Check className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleStatusChange(review.id, 'rejected')}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                          title="Reject"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </>
+                    )}
+                    
+                    <button
+                      onClick={() => handleToggleFeatured(review.id, review.is_featured)}
+                      className={`p-2 rounded-lg ${
+                        review.is_featured
+                          ? 'text-purple-600 bg-purple-50'
+                          : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'
+                      }`}
+                      title={review.is_featured ? 'Remove from featured' : 'Mark as featured'}
+                    >
+                      <Star className={`w-5 h-5 ${review.is_featured ? 'fill-current' : ''}`} />
+                    </button>
+                    
+                    <button
+                      onClick={() => setSelectedReview(review)}
+                      className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+                      title="View"
+                    >
+                      <Eye className="w-5 h-5" />
+                    </button>
+                    
+                    <button
+                      onClick={() => handleDelete(review.id)}
+                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
                   </div>
                 </div>
               </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-row md:flex-col gap-2 min-w-[120px] justify-end w-full md:w-auto mt-4 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0">
-                {review.status === 'Pending' && (
-                  <>
-                    <button onClick={() => updateStatus(review.id, 'Approved')} className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white py-2 px-3 rounded-lg text-xs font-bold uppercase transition">
-                      <CheckCircle size={14} /> Approve
-                    </button>
-                    <button onClick={() => updateStatus(review.id, 'Rejected')} className="flex-1 flex items-center justify-center gap-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 py-2 px-3 rounded-lg text-xs font-bold uppercase transition">
-                      <XCircle size={14} /> Reject
-                    </button>
-                  </>
-                )}
-                
-                {review.status === 'Approved' && (
-                  <button onClick={() => updateStatus(review.id, 'Rejected')} className="text-gray-400 hover:text-red-600 py-1 text-sm flex items-center justify-end gap-1">
-                    <XCircle size={14} /> Unpublish
-                  </button>
-                )}
-
-                <button onClick={() => handleDelete(review.id)} className="text-gray-300 hover:text-red-600 py-1 text-sm flex items-center justify-end gap-1 mt-auto">
-                  <Trash2 size={14} /> Delete
-                </button>
-              </div>
-
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </div>
 
-      {/* --- ADD REVIEW MODAL --- */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="flex justify-between items-center p-5 border-b bg-gray-50">
-              <h2 className="text-lg font-bold text-gray-900">Add Manual Review</h2>
-              <button onClick={() => setIsModalOpen(false)} className="p-1 hover:bg-gray-200 rounded-full transition"><X size={20} className="text-gray-500" /></button>
+      {/* Add Review Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setShowAddModal(false)} />
+          <div className="relative bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b">
+              <h2 className="text-lg font-semibold text-gray-900">Add Manual Review</h2>
+              <p className="text-sm text-gray-500 mt-1">Create a review manually (will be auto-approved)</p>
             </div>
-            
-            <form onSubmit={handleSubmit} className="p-6 space-y-5">
-              
+
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Client Name</label>
-                <input required type="text" className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-green-500 focus:outline-none" value={formData.customer_name} onChange={e => setFormData({...formData, customer_name: e.target.value})} placeholder="e.g. Disha Ji" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Customer Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.customerName}
+                  onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.customerEmail}
+                    onChange={(e) => setFormData({ ...formData, customerEmail: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Location
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.customerLocation}
+                    onChange={(e) => setFormData({ ...formData, customerLocation: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                    placeholder="City, State"
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Rating</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Rating *
+                </label>
                 <div className="flex gap-2">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
                       key={star}
                       type="button"
-                      onClick={() => setFormData({...formData, rating: star})}
-                      className="focus:outline-none transition-transform hover:scale-110"
+                      onClick={() => setFormData({ ...formData, rating: star })}
+                      className="p-1"
                     >
-                      <Star 
-                        size={32} 
-                        className={star <= formData.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'} 
+                      <Star
+                        className={`w-8 h-8 ${
+                          star <= formData.rating
+                            ? 'text-yellow-400 fill-yellow-400'
+                            : 'text-gray-300'
+                        }`}
                       />
                     </button>
                   ))}
@@ -252,26 +419,85 @@ export default function ReviewsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Review / Feedback</label>
-                <textarea required rows={4} className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-green-500 focus:outline-none" value={formData.comment} onChange={e => setFormData({...formData, comment: e.target.value})} placeholder="Paste the client's message here..." />
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Review Title
+                </label>
+                <input
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  placeholder="Great product!"
+                />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">"Helpful" Count</label>
-                <p className="text-xs text-gray-500 mb-2">Show this number on the website for social proof.</p>
-                <input type="number" className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-green-500 focus:outline-none" value={formData.helpful_count} onChange={e => setFormData({...formData, helpful_count: parseInt(e.target.value)})} />
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Review Content *
+                </label>
+                <textarea
+                  value={formData.content}
+                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                  required
+                  rows={4}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  placeholder="Write the review content..."
+                />
               </div>
 
-              <div className="pt-4 flex justify-end gap-3 border-t mt-2">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition">Cancel</button>
-                <button type="submit" className="px-6 py-2.5 bg-green-700 text-white rounded-lg hover:bg-green-800 font-medium shadow-md transition transform active:scale-95">Publish Review</button>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.isVerifiedPurchase}
+                    onChange={(e) => setFormData({ ...formData, isVerifiedPurchase: e.target.checked })}
+                    className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+                  />
+                  <span className="text-sm text-gray-700">Mark as verified purchase</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.isFeatured}
+                    onChange={(e) => setFormData({ ...formData, isFeatured: e.target.checked })}
+                    className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+                  />
+                  <span className="text-sm text-gray-700">Feature this review</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.showOnHomepage}
+                    onChange={(e) => setFormData({ ...formData, showOnHomepage: e.target.checked })}
+                    className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+                  />
+                  <span className="text-sm text-gray-700">Show on homepage</span>
+                </label>
               </div>
 
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddModal(false);
+                    resetForm();
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Creating...' : 'Create Review'}
+                </button>
+              </div>
             </form>
           </div>
         </div>
       )}
-
     </div>
-  )
+  );
 }

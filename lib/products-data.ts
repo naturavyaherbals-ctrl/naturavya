@@ -1,55 +1,35 @@
-export const products = [
-  {
-    id: "v-stiff",
-    name: "V-Stiff",
-    slug: "v-stiff",
-    category: "womens-wellness",
-    price: 1999,
-    image: "/products/v-stiff.png",
-    shortDescription:
-      "Ayurvedic vaginal tightening gel with visible results in 3 days.",
-  },
-  {
-    id: "maxboom",
-    name: "MaxBoom",
-    slug: "maxboom",
-    category: "womens-wellness",
-    price: 2499,
-    image: "/products/maxboom.png",
-    shortDescription:
-      "Natural breast enlargement gel & capsules with guaranteed results.",
-  },
-  {
-    id: "nullpile",
-    name: "NullPile",
-    slug: "nullpile",
-    category: "general-health",
-    price: 1799,
-    image: "/products/nullpile.png",
-    shortDescription:
-      "100% Ayurvedic solution for piles within 7–8 days.",
-  },
-  {
-    id: "zeroache",
-    name: "ZeroAche",
-    slug: "zeroache",
-    category: "general-health",
-    price: 1499,
-    image: "/products/zeroache.png",
-    shortDescription:
-      "Relieves joint & body pain. Safe for all ages and genders.",
-  },
-  {
-    id: "virya-plus",
-    name: "Virya+",
-    slug: "virya-plus",
-    category: "mens-wellness",
-    price: 1999,
-    image: "/products/virya-plus.png",
-    shortDescription:
-      "Ayurvedic sex booster capsule for strength & stamina.",
-  },
-]
-export function getProductBySlug(slug: string) {
-  return products.find((product) => product.slug === slug)
+import React from 'react';
+import { OrderStatus } from '@/types/database';
+import { cn } from '@/lib/utils/helpers';
+
+interface OrderStatusBadgeProps {
+  status: OrderStatus;
+  className?: string;
+}
+
+const statusConfig: Record<OrderStatus, { label: string; className: string }> = {
+  pending: { label: 'Pending', className: 'bg-yellow-100 text-yellow-800' },
+  confirmed: { label: 'Confirmed', className: 'bg-blue-100 text-blue-800' },
+  processing: { label: 'Processing', className: 'bg-indigo-100 text-indigo-800' },
+  shipped: { label: 'Shipped', className: 'bg-purple-100 text-purple-800' },
+  delivered: { label: 'Delivered', className: 'bg-green-100 text-green-800' },
+  cancelled: { label: 'Cancelled', className: 'bg-red-100 text-red-800' },
+  returned: { label: 'Returned', className: 'bg-orange-100 text-orange-800' },
+  refunded: { label: 'Refunded', className: 'bg-gray-100 text-gray-800' },
+};
+
+export function OrderStatusBadge({ status, className }: OrderStatusBadgeProps) {
+  const config = statusConfig[status] || statusConfig.pending;
+
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
+        config.className,
+        className
+      )}
+    >
+      {config.label}
+    </span>
+  );
 }
