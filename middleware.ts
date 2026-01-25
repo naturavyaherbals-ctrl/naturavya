@@ -4,23 +4,23 @@ import { NextResponse, type NextRequest } from 'next/server';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 1. EXEMPTIONS: List every path that should NEVER be redirected
-  // We include /admin/login specifically to stop the loop
+  // 1. ABSOLUTE EXCLUSION
+  // If we are on the login page or using auth APIs, return immediately.
   if (
-    pathname.startsWith('/admin/login') ||
+    pathname === '/admin/login' || 
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/_next') ||
-    pathname.includes('.') ||
-    pathname === '/'
+    pathname.includes('.')
   ) {
     return NextResponse.next();
   }
 
-  // 2. Initialize Supabase
+  // 2. Setup Response
   let response = NextResponse.next({
     request: { headers: request.headers },
   });
 
+  // 3. Setup Supabase
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -41,21 +41,18 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // 3. Get User
-  const { data: { user } } = await supabase.auth.getUser();
+  // 4. Quick Session Check
+  const { data: { session } } = await supabase.auth.getSession();
 
-  // 4. PROTECTION LOGIC
-  // If trying to access /admin and not logged in -> redirect to login
-  if (pathname.startsWith('/admin') && !user) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/admin/login';
-    return NextResponse.redirect(url);
+  // 5. PROTECT ADMIN
+  if (pathname.startsWith('/admin') && !session) {
+    const loginUrl = new URL('/admin/login', request.url);
+    return NextResponse.redirect(loginUrl);
   }
 
   return response;
 }
 
-// 5. MATCHER: Only run middleware on these specific paths to save performance
 export const config = {
   matcher: ['/admin/:path*', '/api/admin/:path*'],
 };
