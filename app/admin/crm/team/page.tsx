@@ -14,6 +14,7 @@ import {
   X,
   Loader2
 } from 'lucide-react';
+import { formatPercentage } from '@/lib/utils/formatters';
 
 interface TeamMember {
   id: string;
@@ -46,6 +47,7 @@ export default function TeamManagementPage() {
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [currentUserRole, setCurrentUserRole] = useState<string>(''); // NEW: Track role
 
   const [formData, setFormData] = useState({
     email: '',
@@ -61,8 +63,24 @@ export default function TeamManagementPage() {
   });
 
   useEffect(() => {
+    fetchUserProfile(); // NEW: Fetch role on load
     fetchTeamMembers();
   }, []);
+
+  // NEW: Helper to check if user can edit/add team
+  const canManageTeam = ['super_admin', 'admin', 'manager'].includes(currentUserRole);
+
+  const fetchUserProfile = async () => {
+    try {
+      const res = await fetch('/api/auth/me');
+      const data = await res.json();
+      if (data.success) {
+        setCurrentUserRole(data.user.role);
+      }
+    } catch (e) {
+      console.error('Failed to fetch user profile:', e);
+    }
+  };
 
   const fetchTeamMembers = async () => {
     setIsLoading(true);
@@ -191,6 +209,17 @@ export default function TeamManagementPage() {
     }
   };
 
+  // Calculate team stats (Safe Access)
+  const teamStats = {
+    totalMembers: teamMembers.length,
+    availableMembers: teamMembers.filter(m => m.is_available).length,
+    totalLeadsAssigned: teamMembers.reduce((sum, m) => sum + (m.stats?.leadsAssigned || 0), 0),
+    totalLeadsConverted: teamMembers.reduce((sum, m) => sum + (m.stats?.leadsConverted || 0), 0),
+    avgConversionRate: teamMembers.length > 0
+      ? teamMembers.reduce((sum, m) => sum + (m.stats?.conversionRate || 0), 0) / teamMembers.length
+      : 0,
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -206,17 +235,77 @@ export default function TeamManagementPage() {
           <h1 className="text-2xl font-bold text-gray-900">Team Management</h1>
           <p className="text-gray-600 mt-1">Manage your sales and support team</p>
         </div>
-        <button
-          onClick={() => {
-            resetForm();
-            setEditingMember(null);
-            setShowAddModal(true);
-          }}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-        >
-          <UserPlus className="w-4 h-4" />
-          Add Team Member
-        </button>
+        
+        {/* CONDITIONAL: Only show Add button if user is Admin/Manager */}
+        {canManageTeam && (
+          <button
+            onClick={() => {
+              resetForm();
+              setEditingMember(null);
+              setShowAddModal(true);
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            <UserPlus className="w-4 h-4" />
+            Add Team Member
+          </button>
+        )}
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Total Members</p>
+              <p className="text-2xl font-bold text-gray-900">{teamStats.totalMembers}</p>
+            </div>
+            <div className="p-3 bg-blue-100 rounded-lg">
+              <Users className="w-6 h-6 text-blue-600" />
+            </div>
+          </div>
+          <p className="text-sm text-green-600 mt-2">
+            {teamStats.availableMembers} available
+          </p>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Leads Assigned</p>
+              <p className="text-2xl font-bold text-gray-900">{teamStats.totalLeadsAssigned}</p>
+            </div>
+            <div className="p-3 bg-purple-100 rounded-lg">
+              <Target className="w-6 h-6 text-purple-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Leads Converted</p>
+              <p className="text-2xl font-bold text-gray-900">{teamStats.totalLeadsConverted}</p>
+            </div>
+            <div className="p-3 bg-green-100 rounded-lg">
+              <TrendingUp className="w-6 h-6 text-green-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Avg Conversion</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {formatPercentage(teamStats.avgConversionRate)}
+              </p>
+            </div>
+            <div className="p-3 bg-yellow-100 rounded-lg">
+              <BarChart3 className="w-6 h-6 text-yellow-600" />
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -228,12 +317,14 @@ export default function TeamManagementPage() {
           <div className="p-12 text-center">
             <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500">No team members yet</p>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="mt-4 text-green-600 hover:text-green-700 font-medium"
-            >
-              Add your first team member
-            </button>
+            {canManageTeam && (
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="mt-4 text-green-600 hover:text-green-700 font-medium"
+              >
+                Add your first team member
+              </button>
+            )}
           </div>
         ) : (
           <div className="divide-y">
@@ -242,7 +333,7 @@ export default function TeamManagementPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-lg font-semibold text-gray-600">
-                      {member.user.full_name.charAt(0).toUpperCase()}
+                      {member.user.full_name?.charAt(0).toUpperCase() || '?'}
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
@@ -261,16 +352,42 @@ export default function TeamManagementPage() {
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => toggleAvailability(member)} className="px-3 py-1 text-sm font-medium bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
-                      {member.is_available ? 'Set Unavailable' : 'Set Available'}
-                    </button>
-                    <button onClick={() => handleEdit(member)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => handleDelete(member.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                  <div className="flex items-center gap-6">
+                    {/* Stats */}
+                    <div className="grid grid-cols-3 gap-6 text-center">
+                      <div>
+                        <p className="text-lg font-semibold text-gray-900">{member.stats?.leadsAssigned || 0}</p>
+                        <p className="text-xs text-gray-500">Assigned</p>
+                      </div>
+                      <div>
+                        <p className="text-lg font-semibold text-gray-900">{member.stats?.leadsConverted || 0}</p>
+                        <p className="text-xs text-gray-500">Converted</p>
+                      </div>
+                      <div>
+                        <p className="text-lg font-semibold text-green-600">
+                          {formatPercentage(member.stats?.conversionRate || 0)}
+                        </p>
+                        <p className="text-xs text-gray-500">Rate</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => toggleAvailability(member)} className="px-3 py-1 text-sm font-medium bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                        {member.is_available ? 'Set Unavailable' : 'Set Available'}
+                      </button>
+                      
+                      {/* CONDITIONAL: Only show Edit/Delete if Admin */}
+                      {canManageTeam && (
+                        <>
+                          <button onClick={() => handleEdit(member)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleDelete(member.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -280,7 +397,7 @@ export default function TeamManagementPage() {
       </div>
 
       {/* Modal */}
-      {showAddModal && (
+      {showAddModal && canManageTeam && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b flex justify-between items-center">

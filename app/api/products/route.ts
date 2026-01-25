@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     
-    // Check if called from Admin (usually by a header or param)
+    // Check if called from Admin (passed as a query param)
     const isAdmin = searchParams.get('admin') === 'true';
 
     const filters = {
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       categoryId: searchParams.get('categoryId') || undefined,
       page: parseInt(searchParams.get('page') || '1'),
       limit: parseInt(searchParams.get('limit') || '12'),
-      // If admin, don't filter by active. If shop, only show active.
+      // IMPORTANT: If admin, show ALL. If shop, show only ACTIVE.
       isActive: isAdmin ? undefined : true 
     };
 
