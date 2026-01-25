@@ -1,14 +1,11 @@
-// =====================================================
-// SUPABASE SERVER CLIENT
-// =====================================================
-
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { Database } from '@/types/database';
 
 export async function createServerSupabaseClient() {
   const cookieStore = await cookies();
 
-  return createServerClient(
+  return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -20,17 +17,20 @@ export async function createServerSupabaseClient() {
           try {
             cookieStore.set({ name, value, ...options });
           } catch (error) {
-            // Handle cookie setting in Server Components
+            // This can be ignored if called from a Server Component
           }
         },
         remove(name: string, options: CookieOptions) {
           try {
-            cookieStore.delete({ name, ...options });
+            cookieStore.set({ name, value: '', ...options });
           } catch (error) {
-            // Handle cookie removal in Server Components
+            // This can be ignored if called from a Server Component
           }
         },
       },
     }
   );
 }
+
+// ALIAS: This fixes the "Attempted import error" across your entire project
+export const createClient = createServerSupabaseClient;

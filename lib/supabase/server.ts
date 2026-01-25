@@ -17,17 +17,20 @@ export async function createServerSupabaseClient() {
           try {
             cookieStore.set({ name, value, ...options });
           } catch (error) {
-            // Handle cookie setting in server components
+            // This can be ignored if called from a Server Component
           }
         },
         remove(name: string, options: CookieOptions) {
           try {
             cookieStore.set({ name, value: '', ...options });
           } catch (error) {
-            // Handle cookie removal in server components
+            // This can be ignored if called from a Server Component
           }
         },
       },
     }
   );
 }
+
+// ALIAS: This fixes the "Attempted import error" across your entire project
+export const createClient = createServerSupabaseClient;

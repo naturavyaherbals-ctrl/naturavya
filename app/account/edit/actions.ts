@@ -1,34 +1,30 @@
-'use server'
+'use server';
 
-import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
-import { createClient } from '@/app/lib/supabase/server'
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 
 export async function updateProfile(formData: FormData) {
-  const supabase = await createClient()
+  const supabase = await createServerSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  const fullName = formData.get('fullName') as string
-  const phone = formData.get('phone') as string
-
-  // 1. Update Auth Metadata (for the name)
-  const { error: authError } = await supabase.auth.updateUser({
-    data: { full_name: fullName }
-  })
-
-  if (authError) {
-    return { error: authError.message }
+  if (!user) {
+    throw new Error('Not authenticated');
   }
 
-  // 2. Update 'users' table (Optional: if you store extra data like phone there)
-  // If you don't have a 'users' table yet, you can skip this part or create one.
-  /*
-  const { error: dbError } = await supabase
+  const fullName = formData.get('fullName') as string;
+  const phone = formData.get('phone') as string;
+
+  const { error } = await supabase
     .from('users')
-    .update({ phone: phone })
-    .eq('id', (await supabase.auth.getUser()).data.user?.id)
-  */
+    .update({
+      full_name: fullName,
+      phone: phone,
+    })
+    .eq('id', user.id);
 
-  revalidatePath('/account')
-  redirect('/account')
+  if (error) throw error;
+
+  revalidatePath('/account');
+  redirect('/account');
 }
-

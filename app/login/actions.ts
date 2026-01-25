@@ -1,56 +1,47 @@
-'use server'
+'use server';
 
-import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
-import { createClient } from '@/app/lib/supabase/server'
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
 
 export async function login(formData: FormData) {
-  const supabase = await createClient()
-
-  const email = formData.get('email') as string
-  const password = formData.get('password') as string
+  const email = formData.get('email') as string;
+  const password = formData.get('password') as string;
+  
+  const supabase = await createServerSupabaseClient();
 
   const { error } = await supabase.auth.signInWithPassword({
     email,
     password,
-  })
+  });
 
   if (error) {
-    return { error: error.message }
+    redirect('/login?error=Could not authenticate user');
   }
 
-  revalidatePath('/', 'layout')
-  redirect('/account')
+  redirect('/account');
 }
 
 export async function signup(formData: FormData) {
-  const supabase = await createClient()
+  const email = formData.get('email') as string;
+  const password = formData.get('password') as string;
+  const fullName = formData.get('fullName') as string;
 
-  const email = formData.get('email') as string
-  const password = formData.get('password') as string
-  const name = formData.get('name') as string
+  const supabase = await createServerSupabaseClient();
 
   const { error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: {
-        full_name: name,
+        full_name: fullName,
       },
     },
-  })
+  });
 
   if (error) {
-    return { error: error.message }
+    redirect('/login?error=Could not sign up user');
   }
 
-  return { success: "Check your email to confirm your account!" }
-}
-
-export async function signout() {
-  const supabase = await createClient()
-  await supabase.auth.signOut()
-  revalidatePath('/', 'layout')
-  redirect('/login')
+  redirect('/login?message=Check email to continue sign in process');
 }
 
