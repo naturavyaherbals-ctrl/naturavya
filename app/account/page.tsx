@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/app/lib/supabase/server"
-import { signout } from "@/app/login/actions"
+import { signout } from "@/app/(auth)/login/actions"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { User, Package, LogOut, Crown, Sparkles, MapPin, Mail, ArrowRight } from "lucide-react"
