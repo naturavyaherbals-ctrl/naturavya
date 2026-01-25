@@ -1,25 +1,25 @@
-// =====================================================
-// LOGOUT API
-// =====================================================
-
-import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { NextResponse } from 'next/server';
 
-export async function POST(request: NextRequest) {
-  try {
-    const supabase = await createServerSupabaseClient();
-    
-    await supabase.auth.signOut();
+export async function GET(request: Request) {
+  const supabase = await createServerSupabaseClient();
+  
+  // Sign out from Supabase
+  await supabase.auth.signOut();
 
-    return NextResponse.json({
-      success: true,
-      message: 'Logged out successfully',
-    });
-  } catch (error: any) {
-    console.error('Logout error:', error);
-    return NextResponse.json({
-      success: false,
-      error: error.message,
-    }, { status: 500 });
-  }
+  // Redirect to home or login page
+  const url = new URL('/', request.url);
+  return NextResponse.redirect(url, {
+    status: 302,
+  });
+}
+
+// Also handle POST for buttons that use form actions
+export async function POST(request: Request) {
+  const supabase = await createServerSupabaseClient();
+  await supabase.auth.signOut();
+  const url = new URL('/admin/login', request.url);
+  return NextResponse.redirect(url, {
+    status: 302,
+  });
 }
