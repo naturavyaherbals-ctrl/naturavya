@@ -4,23 +4,28 @@ import { NextResponse, type NextRequest } from 'next/server';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 1. ABSOLUTE EXCLUSION
-  // If we are on the login page or using auth APIs, return immediately.
+  // 1. THE ABSOLUTE BYPASS
+  // If the user is already on the login page, STOP EVERYTHING.
+  // This physically prevents a loop.
+  if (pathname === '/admin/login') {
+    return NextResponse.next();
+  }
+
+  // 2. OTHER EXEMPTIONS
   if (
-    pathname === '/admin/login' || 
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/_next') ||
-    pathname.includes('.')
+    pathname.includes('.') ||
+    pathname === '/'
   ) {
     return NextResponse.next();
   }
 
-  // 2. Setup Response
+  // 3. INITIALIZE SUPABASE
   let response = NextResponse.next({
     request: { headers: request.headers },
   });
 
-  // 3. Setup Supabase
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -41,13 +46,15 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // 4. Quick Session Check
+  // 4. CHECK SESSION
   const { data: { session } } = await supabase.auth.getSession();
 
-  // 5. PROTECT ADMIN
+  // 5. PROTECTION LOGIC
   if (pathname.startsWith('/admin') && !session) {
-    const loginUrl = new URL('/admin/login', request.url);
-    return NextResponse.redirect(loginUrl);
+    const url = request.nextUrl.clone();
+    url.pathname = '/admin/login';
+    url.search = ''; // Clear search params to avoid loop state
+    return NextResponse.redirect(url);
   }
 
   return response;
