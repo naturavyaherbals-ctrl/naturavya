@@ -1,35 +1,31 @@
 'use client';
 
-// =====================================================
-// AGENT DASHBOARD - SALES AGENT VIEW
-// =====================================================
-
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+import Link from 'next/router';
 import { useAuth } from '@/context/AuthContext';
 import {
   Phone,
   PhoneCall,
-  PhoneOff,
   Clock,
   CheckCircle,
-  XCircle,
   TrendingUp,
-  Target,
-  Calendar,
   AlertCircle,
   ChevronRight,
   MessageCircle,
   User,
+  Sparkles, // 👈 Added for Hot Leads
+  Flame,
+  ArrowUpRight
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import type { Lead, TeamMemberStats } from '@/types';
 
 export default function AgentDashboard() {
   const { user, teamMember } = useAuth();
-  const [stats, setStats] = useState<TeamMemberStats | null>(null);
+  const [stats, setStats] = useState<any>(null);
   const [pendingLeads, setPendingLeads] = useState<Lead[]>([]);
   const [followUpLeads, setFollowUpLeads] = useState<Lead[]>([]);
+  const [hotLeads, setHotLeads] = useState<Lead[]>([]); // 🚀 NEW STATE
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -38,10 +34,11 @@ export default function AgentDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch agent stats and leads
+      // 1. Fetch stats and high-priority leads
+      // We update the query to include 'hot' leads based on priority=2
       const [statsRes, leadsRes] = await Promise.all([
         fetch('/api/admin/dashboard/agent-stats'),
-        fetch('/api/leads?status=new,not_picked,follow_up&assigned_to=me&limit=10'),
+        fetch('/api/leads?assigned_to=me&limit=30'), // Fetch a larger batch to filter locally
       ]);
 
       const statsData = await statsRes.json();
@@ -52,9 +49,17 @@ export default function AgentDashboard() {
       }
 
       if (leadsData.success) {
-        const leads = leadsData.data as Lead[];
-        setPendingLeads(leads.filter(l => ['new', 'not_picked'].includes(l.status)));
-        setFollowUpLeads(leads.filter(l => l.status === 'follow_up'));
+        const allLeads = leadsData.data as any[];
+        
+        // 🚀 SEGMENTATION LOGIC
+        // Hot Leads = Priority 2
+        setHotLeads(allLeads.filter(l => l.priority === 2));
+        
+        // Follow-ups = status 'follow_up'
+        setFollowUpLeads(allLeads.filter(l => l.status === 'follow_up'));
+        
+        // Pending = new or not picked
+        setPendingLeads(allLeads.filter(l => ['new', 'not_picked'].includes(l.status)));
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -63,201 +68,84 @@ export default function AgentDashboard() {
     }
   };
 
-  if (isLoading) {
-    return <DashboardSkeleton />;
-  }
+  if (isLoading) return <DashboardSkeleton />;
 
   return (
-    <div className="space-y-6">
-      {/* Welcome Header */}
-      <div className="bg-gradient-to-r from-primary to-primary/80 rounded-xl p-6 text-white">
-        <div className="flex items-center justify-between">
+    <div className="space-y-8 p-4">
+      {/* 1. Welcome Header */}
+      <div className="bg-[#0f172a] rounded-[2rem] p-8 text-white relative overflow-hidden shadow-2xl shadow-slate-200">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <h1 className="text-2xl font-bold">Welcome back, {user?.full_name?.split(' ')[0]}! 👋</h1>
-            <p className="text-white/80 mt-1">Here's your performance overview for today</p>
+            <h1 className="text-3xl font-bold">Namaste, {user?.full_name?.split(' ')[0]}!</h1>
+            <p className="text-slate-400 mt-2 font-medium">You have <span className="text-amber-400">{hotLeads.length} Hot Leads</span> waiting for conversion today.</p>
           </div>
-          <div className="text-right">
-            <p className="text-sm text-white/80">Today's Target</p>
-            <p className="text-3xl font-bold">{stats?.leads_converted_today || 0}/{teamMember?.monthly_target ? Math.ceil(teamMember.monthly_target / 30) : 5}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          icon={<Phone className="w-5 h-5" />}
-          iconBg="bg-blue-100"
-          iconColor="text-blue-600"
-          label="Leads Today"
-          value={stats?.leads_assigned_today || 0}
-          subtext="Assigned to you"
-        />
-        <StatCard
-          icon={<PhoneCall className="w-5 h-5" />}
-          iconBg="bg-green-100"
-          iconColor="text-green-600"
-          label="Calls Made"
-          value={stats?.leads_contacted || 0}
-          subtext="Contacted today"
-        />
-        <StatCard
-          icon={<CheckCircle className="w-5 h-5" />}
-          iconBg="bg-purple-100"
-          iconColor="text-purple-600"
-          label="Conversions"
-          value={stats?.leads_converted_today || 0}
-          subtext="Orders confirmed"
-        />
-        <StatCard
-          icon={<Clock className="w-5 h-5" />}
-          iconBg="bg-orange-100"
-          iconColor="text-orange-600"
-          label="Pending Follow-ups"
-          value={stats?.follow_up_pending || 0}
-          subtext="Need attention"
-        />
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Link
-          href="/admin/crm?status=new"
-          className="flex items-center gap-4 p-4 bg-blue-50 rounded-xl hover:bg-blue-100 transition-colors"
-        >
-          <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-            <Phone className="w-6 h-6 text-blue-600" />
-          </div>
-          <div>
-            <p className="font-semibold text-gray-900">New Leads</p>
-            <p className="text-sm text-gray-500">Call fresh leads</p>
-          </div>
-          <ChevronRight className="w-5 h-5 text-gray-400 ml-auto" />
-        </Link>
-
-        <Link
-          href="/admin/crm?status=follow_up"
-          className="flex items-center gap-4 p-4 bg-orange-50 rounded-xl hover:bg-orange-100 transition-colors"
-        >
-          <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
-            <Clock className="w-6 h-6 text-orange-600" />
-          </div>
-          <div>
-            <p className="font-semibold text-gray-900">Follow Ups</p>
-            <p className="text-sm text-gray-500">Pending callbacks</p>
-          </div>
-          <ChevronRight className="w-5 h-5 text-gray-400 ml-auto" />
-        </Link>
-
-        <Link
-          href="/admin/crm?status=hot_lead"
-          className="flex items-center gap-4 p-4 bg-red-50 rounded-xl hover:bg-red-100 transition-colors"
-        >
-          <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
-            <TrendingUp className="w-6 h-6 text-red-600" />
-          </div>
-          <div>
-            <p className="font-semibold text-gray-900">Hot Leads</p>
-            <p className="text-sm text-gray-500">Ready to convert</p>
-          </div>
-          <ChevronRight className="w-5 h-5 text-gray-400 ml-auto" />
-        </Link>
-
-        <Link
-          href="/admin/orders?status=pending"
-          className="flex items-center gap-4 p-4 bg-green-50 rounded-xl hover:bg-green-100 transition-colors"
-        >
-          <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-            <CheckCircle className="w-6 h-6 text-green-600" />
-          </div>
-          <div>
-            <p className="font-semibold text-gray-900">My Orders</p>
-            <p className="text-sm text-gray-500">View orders</p>
-          </div>
-          <ChevronRight className="w-5 h-5 text-gray-400 ml-auto" />
-        </Link>
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Pending Leads - Priority */}
-        <div className="bg-white rounded-xl shadow-sm border">
-          <div className="p-4 border-b flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-red-500" />
-              <h2 className="font-semibold">Priority Leads</h2>
+          <div className="bg-white/10 backdrop-blur-md p-6 rounded-3xl border border-white/10 text-right min-w-[200px]">
+            <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Conversion Target</p>
+            <div className="flex items-end justify-end gap-2">
+                <span className="text-4xl font-black text-green-400">{stats?.leads_converted_today || 0}</span>
+                <span className="text-lg font-bold text-slate-500 mb-1">/ 10</span>
             </div>
-            <Link
-              href="/admin/crm?status=new,not_picked"
-              className="text-sm text-primary hover:underline"
-            >
-              View All
-            </Link>
-          </div>
-          <div className="divide-y">
-            {pendingLeads.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">
-                <CheckCircle className="w-12 h-12 mx-auto text-green-500 mb-2" />
-                <p>All caught up! No pending leads.</p>
-              </div>
-            ) : (
-              pendingLeads.map((lead) => (
-                <LeadQuickCard key={lead.id} lead={lead} />
-              ))
-            )}
           </div>
         </div>
+        {/* Abstract Background patterns */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl -mr-20 -mt-20" />
+      </div>
 
-        {/* Follow-up Leads */}
-        <div className="bg-white rounded-xl shadow-sm border">
-          <div className="p-4 border-b flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-orange-500" />
-              <h2 className="font-semibold">Today's Follow-ups</h2>
-            </div>
-            <Link
-              href="/admin/crm?status=follow_up"
-              className="text-sm text-primary hover:underline"
-            >
-              View All
-            </Link>
-          </div>
-          <div className="divide-y">
-            {followUpLeads.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">
-                <Calendar className="w-12 h-12 mx-auto text-gray-300 mb-2" />
-                <p>No follow-ups scheduled for today.</p>
+      {/* 2. Primary Action Row: HOT & PENDING */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* HOT LEADS CARD */}
+        <div className="lg:col-span-1 bg-white rounded-[2rem] border-2 border-red-50 shadow-xl shadow-red-100/50 flex flex-col">
+           <div className="p-6 border-b border-red-50 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                 <div className="p-2 bg-red-50 rounded-xl text-red-600"><Flame size={20} /></div>
+                 <h2 className="font-black uppercase tracking-tighter text-red-900">Hot Leads</h2>
               </div>
-            ) : (
-              followUpLeads.map((lead) => (
-                <LeadQuickCard key={lead.id} lead={lead} />
-              ))
-            )}
-          </div>
+              <span className="px-3 py-1 bg-red-600 text-white text-xs font-black rounded-full">{hotLeads.length}</span>
+           </div>
+           <div className="flex-1 overflow-y-auto max-h-[400px] divide-y divide-red-50">
+              {hotLeads.length > 0 ? (
+                hotLeads.map(lead => <LeadQuickRow key={lead.id} lead={lead} type="hot" />)
+              ) : (
+                <div className="p-10 text-center text-slate-400 text-sm italic">No priority leads found.</div>
+              )}
+           </div>
+           <Link href="/admin/crm/leads?priority=2" className="p-4 text-center text-xs font-bold text-red-600 hover:bg-red-50 transition-colors uppercase tracking-widest">View All Priority</Link>
+        </div>
+
+        {/* PENDING FOLLOW-UPS CARD */}
+        <div className="lg:col-span-1 bg-white rounded-[2rem] border-2 border-amber-50 shadow-xl shadow-amber-100/50 flex flex-col">
+           <div className="p-6 border-b border-amber-50 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                 <div className="p-2 bg-amber-50 rounded-xl text-amber-600"><Clock size={20} /></div>
+                 <h2 className="font-black uppercase tracking-tighter text-amber-900">Follow-ups</h2>
+              </div>
+              <span className="px-3 py-1 bg-amber-500 text-white text-xs font-black rounded-full">{followUpLeads.length}</span>
+           </div>
+           <div className="flex-1 overflow-y-auto max-h-[400px] divide-y divide-amber-50">
+              {followUpLeads.length > 0 ? (
+                followUpLeads.map(lead => <LeadQuickRow key={lead.id} lead={lead} type="follow" />)
+              ) : (
+                <div className="p-10 text-center text-slate-400 text-sm italic">No follow-ups for today.</div>
+              )}
+           </div>
+           <Link href="/admin/crm/leads?status=follow_up" className="p-4 text-center text-xs font-bold text-amber-600 hover:bg-amber-50 transition-colors uppercase tracking-widest">Manage Schedule</Link>
+        </div>
+
+        {/* STATS OVERVIEW */}
+        <div className="lg:col-span-1 grid grid-cols-1 gap-4">
+           <QuickStat label="Daily Call Log" value={stats?.leads_contacted || 0} icon={<PhoneCall />} color="blue" />
+           <QuickStat label="Conversion Rate" value={`${stats?.conversion_rate || 0}%`} icon={<TrendingUp />} color="green" />
+           <QuickStat label="Leads in Queue" value={pendingLeads.length} icon={<Target />} color="purple" />
         </div>
       </div>
 
-      {/* Performance Summary */}
-      <div className="bg-white rounded-xl shadow-sm border p-6">
-        <h2 className="font-semibold mb-4">Your Performance This Month</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          <div>
-            <p className="text-sm text-gray-500">Total Leads</p>
-            <p className="text-2xl font-bold text-gray-900">{stats?.leads_assigned_total || 0}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Converted</p>
-            <p className="text-2xl font-bold text-green-600">{stats?.leads_converted_total || 0}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Conversion Rate</p>
-            <p className="text-2xl font-bold text-primary">{stats?.conversion_rate || 0}%</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Revenue Generated</p>
-            <p className="text-2xl font-bold text-gray-900">₹{(stats?.revenue_total || 0).toLocaleString('en-IN')}</p>
-          </div>
-        </div>
+      {/* 3. Quick Navigation */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+         <NavButton label="New Leads" count={pendingLeads.length} href="/admin/crm/leads?status=new" icon={<Sparkles />} color="bg-blue-600" />
+         <NavButton label="Follow Ups" count={followUpLeads.length} href="/admin/crm/leads?status=follow_up" icon={<Clock />} color="bg-amber-500" />
+         <NavButton label="Hot Leads" count={hotLeads.length} href="/admin/crm/leads?priority=2" icon={<Flame />} color="bg-red-600" />
+         <NavButton label="My Orders" href="/admin/orders" icon={<CheckCircle />} color="bg-green-600" />
       </div>
     </div>
   );
@@ -267,119 +155,69 @@ export default function AgentDashboard() {
 // HELPER COMPONENTS
 // =====================================================
 
-function StatCard({
-  icon,
-  iconBg,
-  iconColor,
-  label,
-  value,
-  subtext,
-}: {
-  icon: React.ReactNode;
-  iconBg: string;
-  iconColor: string;
-  label: string;
-  value: number | string;
-  subtext: string;
-}) {
+function QuickStat({ label, value, icon, color }: any) {
+  const colors: any = {
+    blue: 'bg-blue-50 text-blue-600',
+    green: 'bg-green-50 text-green-600',
+    purple: 'bg-purple-50 text-purple-600'
+  };
   return (
-    <div className="bg-white rounded-xl p-4 shadow-sm border">
-      <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 ${iconBg} rounded-lg flex items-center justify-center ${iconColor}`}>
-          {icon}
-        </div>
-        <div>
-          <p className="text-2xl font-bold text-gray-900">{value}</p>
-          <p className="text-sm text-gray-500">{label}</p>
-        </div>
-      </div>
+    <div className="bg-white p-6 rounded-[1.5rem] border border-slate-100 flex items-center gap-4 shadow-sm">
+       <div className={`p-4 rounded-2xl ${colors[color]}`}>{icon}</div>
+       <div>
+          <p className="text-xs font-black uppercase text-slate-400 tracking-widest">{label}</p>
+          <p className="text-2xl font-black text-slate-900">{value}</p>
+       </div>
     </div>
   );
 }
 
-function LeadQuickCard({ lead }: { lead: Lead }) {
+function NavButton({ label, count, href, icon, color }: any) {
   return (
-    <div className="p-4 hover:bg-gray-50">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                        <User className="w-5 h-5 text-gray-500" />
+    <Link href={href} className="group relative bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-all flex flex-col gap-4 overflow-hidden">
+       <div className={`w-12 h-12 rounded-2xl ${color} text-white flex items-center justify-center shadow-lg transition-transform group-hover:scale-110`}>
+          {icon}
+       </div>
+       <div>
+          <p className="text-sm font-bold text-slate-900">{label}</p>
+          {count !== undefined && <p className="text-xs text-slate-400">{count} items pending</p>}
+       </div>
+       <ArrowUpRight className="absolute top-6 right-6 text-slate-200 group-hover:text-slate-400 transition-colors" size={20} />
+    </Link>
+  );
+}
+
+function LeadQuickRow({ lead, type }: { lead: Lead, type: 'hot' | 'follow' }) {
+  return (
+    <div className="p-4 hover:bg-slate-50 transition-colors flex items-center justify-between group">
+       <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 uppercase">
+             {lead.full_name?.[0]}
           </div>
           <div>
-            <p className="font-medium text-gray-900">{lead.full_name || 'Unknown'}</p>
-            <p className="text-sm text-gray-500">{lead.phone}</p>
-            {lead.city && (
-              <p className="text-xs text-gray-400">📍 {lead.city}, {lead.state}</p>
-            )}
+             <p className="text-sm font-bold text-slate-900">{lead.full_name}</p>
+             <p className="text-[10px] text-slate-400 font-medium">{lead.phone}</p>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Call Button */}
-          <a
-            href={`tel:${lead.phone}`}
-            className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200 transition-colors"
-            title="Call"
-          >
-            <Phone className="w-4 h-4" />
+       </div>
+       <div className="flex items-center gap-2">
+          <a href={`tel:${lead.phone}`} className="p-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-600 hover:text-white transition-all">
+             <Phone size={14} />
           </a>
-          {/* WhatsApp Button */}
-          <a
-            href={`https://wa.me/91${lead.phone.replace(/\D/g, '').slice(-10)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-            title="WhatsApp"
-          >
-            <MessageCircle className="w-4 h-4" />
-          </a>
-          {/* View Details */}
-          <Link
-            href={`/admin/crm/${lead.id}`}
-            className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
-            title="View Details"
-          >
-            <ChevronRight className="w-4 h-4" />
+          <Link href={`/admin/crm/leads/${lead.id}`} className="p-2 rounded-lg bg-slate-100 text-slate-400 hover:bg-slate-900 hover:text-white transition-all">
+             <ChevronRight size={14} />
           </Link>
-        </div>
-      </div>
-      {/* Lead Meta */}
-      <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-        <span className={`px-2 py-0.5 rounded-full ${getStatusColor(lead.status)}`}>
-          {lead.status.replace('_', ' ')}
-        </span>
-        <span>via {lead.source.replace('_', ' ')}</span>
-        <span>{formatDistanceToNow(new Date(lead.created_at), { addSuffix: true })}</span>
-      </div>
+       </div>
     </div>
   );
-}
-
-function getStatusColor(status: string): string {
-  const colors: Record<string, string> = {
-    new: 'bg-blue-100 text-blue-700',
-    not_picked: 'bg-gray-100 text-gray-700',
-    follow_up: 'bg-orange-100 text-orange-700',
-    interested: 'bg-purple-100 text-purple-700',
-    hot_lead: 'bg-red-100 text-red-700',
-    order_confirmed: 'bg-green-100 text-green-700',
-    converted: 'bg-green-100 text-green-700',
-  };
-  return colors[status] || 'bg-gray-100 text-gray-700';
 }
 
 function DashboardSkeleton() {
-  return (
-    <div className="space-y-6 animate-pulse">
-      <div className="h-32 bg-gray-200 rounded-xl" />
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="h-24 bg-gray-200 rounded-xl" />
-        ))}
-      </div>
-      <div className="grid lg:grid-cols-2 gap-6">
-        <div className="h-64 bg-gray-200 rounded-xl" />
-        <div className="h-64 bg-gray-200 rounded-xl" />
-      </div>
-    </div>
-  );
+    return <div className="p-8 space-y-6 animate-pulse">
+        <div className="h-40 bg-slate-100 rounded-[2rem]" />
+        <div className="grid grid-cols-3 gap-6">
+            <div className="h-64 bg-slate-100 rounded-[2rem]" />
+            <div className="h-64 bg-slate-100 rounded-[2rem]" />
+            <div className="h-64 bg-slate-100 rounded-[2rem]" />
+        </div>
+    </div>;
 }
