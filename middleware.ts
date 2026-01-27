@@ -4,12 +4,21 @@ import { NextResponse, type NextRequest } from 'next/server';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 1. Initial Response
+  // 1. Skip middleware for static assets, images, and internal Next.js files
+  // This prevents the middleware from running thousands of times unnecessarily
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/api') ||
+    pathname.startsWith('/static') ||
+    pathname.includes('.') // matches .png, .jpg, .ico, etc.
+  ) {
+    return NextResponse.next();
+  }
+
   let response = NextResponse.next({
     request: { headers: request.headers },
   });
 
-  // 2. Initialize Supabase
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -24,41 +33,32 @@ export async function middleware(request: NextRequest) {
         remove(name: string, options: CookieOptions) {
           request.cookies.set({ name, value: '', ...options });
           response = NextResponse.next({ request: { headers: request.headers } });
-          response.cookies.set({ name, value, ...options });
+          response.cookies.set({ name, value: '', ...options });
         },
       },
     }
   );
 
-  // 3. Check Session
+  // 2. Use getSession() instead of getUser() for speed in Middleware
   const { data: { session } } = await supabase.auth.getSession();
 
-  // -----------------------------------------------------------------
-  // 4. PROTECT ADMIN ROUTES (/admin/*)
-  // -----------------------------------------------------------------
+  // 3. Logic for /admin routes
   if (pathname.startsWith('/admin')) {
     if (!session) {
-      // Redirect unauthenticated users to the MAIN login page
-      const loginUrl = new URL('/login', request.url); 
-      return NextResponse.redirect(loginUrl);
+      // Use absolute URL to prevent loop issues
+      return NextResponse.redirect(new URL('/login', request.url));
     }
   }
 
-  // -----------------------------------------------------------------
-  // 5. REDIRECT IF ALREADY LOGGED IN
-  // -----------------------------------------------------------------
+  // 4. Logic for /login route (redirect if already logged in)
   if (pathname === '/login' && session) {
-    // If logged in, send them to dashboard
-    // NOTE: Ideally check role here, but for now send to admin dashboard
-    // The dashboard itself can redirect to /account if not an admin
-    const dashboardUrl = new URL('/admin/dashboard', request.url);
-    return NextResponse.redirect(dashboardUrl);
+    return NextResponse.redirect(new URL('/admin/dashboard', request.url));
   }
 
   return response;
 }
 
+// 5. Very specific matcher to reduce invocation count
 export const config = {
-  // Apply to admin routes and main login page
-  matcher: ['/admin/:path*', '/login'],
+  matcher: ['/admin/:path*', '/login', '/account/:path*'],
 };
