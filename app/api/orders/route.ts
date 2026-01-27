@@ -1,40 +1,91 @@
-export const dynamic = 'force-dynamic';
-
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { orderService } from '@/lib/services/orderService';
+import { OrderStatus } from '@/types/order';
 
+// GET /api/orders - Fetch orders with filters
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
     const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { searchParams } = new URL(request.url);
 
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    // Parse query parameters
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const status = searchParams.get('status') as OrderStatus | null;
+    const search = searchParams.get('search');
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    const isRTO = searchParams.get('isRTO');
+    const sortBy = searchParams.get('sortBy') || 'created_at';
+    const sortOrder = searchParams.get('sortOrder') || 'desc';
+
+    // Verify authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
-    // Determine if admin or customer request
-    const isAdminRequest = searchParams.get('admin') === 'true';
+    // Build query
+    let query = supabase
+      .from('orders')
+      .select('*', { count: 'exact' });
 
-    if (isAdminRequest) {
-      const filters = {
-        status: searchParams.get('status') as any || undefined,
-        search: searchParams.get('search') || undefined,
-        page: parseInt(searchParams.get('page') || '1'),
-        limit: parseInt(searchParams.get('limit') || '20'),
-      };
-
-      const result = await orderService.getOrdersForAdmin(filters);
-      return NextResponse.json({ success: true, ...result });
+    // Apply filters
+    if (status) {
+      query = query.eq('current_status', status);
     }
 
-    // Customer logic
-    const orders = await orderService.getUserOrders(user.id);
-    return NextResponse.json({ success: true, orders });
-    
+    if (search) {
+      query = query.or(
+        `order_number.ilike.%${search}%,customer_name.ilike.%${search}%,customer_phone.ilike.%${search}%`
+      );
+    }
+
+    if (startDate) {
+      query = query.gte('created_at', startDate);
+    }
+
+    if (endDate) {
+      query = query.lte('created_at', endDate);
+    }
+
+    if (isRTO === 'true') {
+      query = query.eq('is_rto', true);
+    }
+
+    // Apply sorting and pagination
+    const offset = (page - 1) * limit;
+    query = query
+      .order(sortBy, { ascending: sortOrder === 'asc' })
+      .range(offset, offset + limit - 1);
+
+    const { data: orders, error, count } = await query;
+
+    if (error) {
+      console.error('Error fetching orders:', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch orders' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      orders,
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limit),
+      },
+    });
   } catch (error) {
-    console.error('API Orders Error:', error);
-    return NextResponse.json({ success: false, error: 'Failed to fetch' }, { status: 500 });
+    console.error('Orders API error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }

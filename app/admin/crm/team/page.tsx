@@ -1,505 +1,303 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import {
-  UserPlus,
-  Phone,
-  Mail,
-  Edit,
-  Trash2,
-  Users,
-  TrendingUp,
-  Target,
-  BarChart3,
-  X,
-  Loader2
-} from 'lucide-react';
-import { formatPercentage } from '@/lib/utils/formatters';
+import { useState, useEffect } from 'react';
+import { Plus, RefreshCw, Loader2, Edit, Trash2, Eye, EyeOff } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client'; // Import Supabase Client
 
 interface TeamMember {
   id: string;
-  employee_id: string | null;
-  department: string | null;
-  designation: string | null;
-  daily_lead_capacity: number;
-  is_available: boolean;
-  user: {
-    id: string;
-    email: string;
-    phone: string | null;
-    full_name: string;
-    role: string;
-    is_active: boolean;
-  };
-  stats: {
-    leadsAssigned: number;
-    leadsContacted: number;
-    leadsConverted: number;
-    conversionRate: number;
-    totalCalls: number;
-  };
+  name?: string; 
+  full_name?: string; 
+  email: string;
+  phone?: string;
+  role: string;
+  department?: string;
+  daily_lead_capacity?: number;
+  is_active?: boolean;
 }
 
-export default function TeamManagementPage() {
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [showAddModal, setShowAddModal] = useState(false);
+export default function TeamPage() {
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [currentUserRole, setCurrentUserRole] = useState<string>(''); // NEW: Track role
+  
+  // 1. Role State
+  const [currentUserRole, setCurrentUserRole] = useState<string>('');
+  const supabase = createClient();
 
-  const [formData, setFormData] = useState({
-    email: '',
-    fullName: '',
-    phone: '',
-    role: 'agent',
-    employeeId: '',
-    department: '',
-    designation: '',
-    dailyLeadCapacity: 50,
-    isAvailable: true,
-    tempPassword: '',
-  });
+  const fetchMembers = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/team');
+      const data = await res.json();
+      setMembers(data.teamMembers || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  useEffect(() => {
-    fetchUserProfile(); // NEW: Fetch role on load
-    fetchTeamMembers();
+  // 2. Fetch User Role
+  const checkUserRole = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: member } = await supabase
+        .from('team_members')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+      setCurrentUserRole(member?.role || 'agent');
+    }
+  };
+
+  useEffect(() => { 
+    fetchMembers(); 
+    checkUserRole(); // Run on mount
   }, []);
 
-  // NEW: Helper to check if user can edit/add team
-  const canManageTeam = ['super_admin', 'admin', 'manager'].includes(currentUserRole);
-
-  const fetchUserProfile = async () => {
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this member?')) return;
     try {
-      const res = await fetch('/api/auth/me');
-      const data = await res.json();
-      if (data.success) {
-        setCurrentUserRole(data.user.role);
-      }
-    } catch (e) {
-      console.error('Failed to fetch user profile:', e);
-    }
-  };
-
-  const fetchTeamMembers = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch('/api/admin/team');
-      const data = await response.json();
-      if (data.success) {
-        setTeamMembers(data.teamMembers || []);
-      }
-    } catch (err) {
-      console.error('Failed to fetch team members:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { name, value, type } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsSubmitting(true);
-
-    try {
-      const url = editingMember
-        ? `/api/admin/team/${editingMember.id}`
-        : '/api/admin/team';
-      
-      const response = await fetch(url, {
-        method: editingMember ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setShowAddModal(false);
-        setEditingMember(null);
-        resetForm();
-        fetchTeamMembers();
+      const res = await fetch(`/api/admin/team?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setMembers(members.filter(m => m.id !== id));
       } else {
-        setError(data.error || 'Failed to save team member');
+        alert('Failed to delete');
       }
     } catch (err) {
-      console.error('Team member save error:', err);
-      setError('An error occurred. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleDelete = async (memberId: string) => {
-    if (!confirm('Are you sure you want to remove this team member? Their leads will be unassigned.')) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`/api/admin/team/${memberId}`, {
-        method: 'DELETE',
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        fetchTeamMembers();
-      } else {
-        alert(data.error || 'Failed to delete team member');
-      }
-    } catch (err) {
-      console.error('Team member delete error:', err);
-      alert('An error occurred. Please try again.');
+      alert('Error deleting member');
     }
   };
 
   const handleEdit = (member: TeamMember) => {
     setEditingMember(member);
-    setFormData({
-      email: member.user.email,
-      fullName: member.user.full_name,
-      phone: member.user.phone || '',
-      role: member.user.role,
-      employeeId: member.employee_id || '',
-      department: member.department || '',
-      designation: member.designation || '',
-      dailyLeadCapacity: member.daily_lead_capacity,
-      isAvailable: member.is_available,
-      tempPassword: '',
-    });
-    setShowAddModal(true);
+    setShowModal(true);
   };
 
-  const resetForm = () => {
-    setFormData({
-      email: '',
-      fullName: '',
-      phone: '',
-      role: 'agent',
-      employeeId: '',
-      department: '',
-      designation: '',
-      dailyLeadCapacity: 50,
-      isAvailable: true,
-      tempPassword: '',
-    });
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingMember(null);
   };
 
-  const toggleAvailability = async (member: TeamMember) => {
-    try {
-      await fetch(`/api/admin/team/${member.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isAvailable: !member.is_available }),
-      });
-      fetchTeamMembers();
-    } catch (err) {
-      console.error('Toggle availability error:', err);
-    }
-  };
-
-  // Calculate team stats (Safe Access)
-  const teamStats = {
-    totalMembers: teamMembers.length,
-    availableMembers: teamMembers.filter(m => m.is_available).length,
-    totalLeadsAssigned: teamMembers.reduce((sum, m) => sum + (m.stats?.leadsAssigned || 0), 0),
-    totalLeadsConverted: teamMembers.reduce((sum, m) => sum + (m.stats?.leadsConverted || 0), 0),
-    avgConversionRate: teamMembers.length > 0
-      ? teamMembers.reduce((sum, m) => sum + (m.stats?.conversionRate || 0), 0) / teamMembers.length
-      : 0,
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-green-600" />
-      </div>
-    );
-  }
+  // 3. Permission Check
+  const canManageTeam = ['super_admin', 'admin'].includes(currentUserRole);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Team Management</h1>
-          <p className="text-gray-600 mt-1">Manage your sales and support team</p>
-        </div>
-        
-        {/* CONDITIONAL: Only show Add button if user is Admin/Manager */}
-        {canManageTeam && (
-          <button
-            onClick={() => {
-              resetForm();
-              setEditingMember(null);
-              setShowAddModal(true);
-            }}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-          >
-            <UserPlus className="w-4 h-4" />
-            Add Team Member
-          </button>
-        )}
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Total Members</p>
-              <p className="text-2xl font-bold text-gray-900">{teamStats.totalMembers}</p>
-            </div>
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <Users className="w-6 h-6 text-blue-600" />
-            </div>
-          </div>
-          <p className="text-sm text-green-600 mt-2">
-            {teamStats.availableMembers} available
-          </p>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Leads Assigned</p>
-              <p className="text-2xl font-bold text-gray-900">{teamStats.totalLeadsAssigned}</p>
-            </div>
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <Target className="w-6 h-6 text-purple-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Leads Converted</p>
-              <p className="text-2xl font-bold text-gray-900">{teamStats.totalLeadsConverted}</p>
-            </div>
-            <div className="p-3 bg-green-100 rounded-lg">
-              <TrendingUp className="w-6 h-6 text-green-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Avg Conversion</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {formatPercentage(teamStats.avgConversionRate)}
-              </p>
-            </div>
-            <div className="p-3 bg-yellow-100 rounded-lg">
-              <BarChart3 className="w-6 h-6 text-yellow-600" />
-            </div>
-          </div>
+    <div className="p-8 bg-gray-50 min-h-screen">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Team Management</h1>
+        <div className="flex gap-2">
+          <button onClick={fetchMembers} className="p-2 bg-white border rounded hover:bg-gray-50"><RefreshCw className="w-4 h-4" /></button>
+          
+          {/* 4. Conditional Render: Add Button */}
+          {canManageTeam && (
+            <button onClick={() => setShowModal(true)} className="px-4 py-2 bg-blue-600 text-white rounded flex items-center gap-2 hover:bg-blue-700">
+              <Plus className="w-4 h-4" /> Add Member
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b">
-          <h2 className="font-semibold text-gray-900">Team Members</h2>
-        </div>
-        
-        {teamMembers.length === 0 ? (
-          <div className="p-12 text-center">
-            <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">No team members yet</p>
-            {canManageTeam && (
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="mt-4 text-green-600 hover:text-green-700 font-medium"
-              >
-                Add your first team member
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="divide-y">
-            {teamMembers.map((member) => (
-              <div key={member.id} className="p-6 hover:bg-gray-50">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-lg font-semibold text-gray-600">
-                      {member.user.full_name?.charAt(0).toUpperCase() || '?'}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-gray-900">{member.user.full_name}</p>
-                        <span className={`px-2 py-0.5 rounded-full text-xs ${member.is_available ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                          {member.is_available ? 'Available' : 'Unavailable'}
-                        </span>
-                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs capitalize">
-                          {member.user.role.replace('_', ' ')}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                        <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{member.user.email}</span>
-                        {member.user.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{member.user.phone}</span>}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-6">
-                    {/* Stats */}
-                    <div className="grid grid-cols-3 gap-6 text-center">
-                      <div>
-                        <p className="text-lg font-semibold text-gray-900">{member.stats?.leadsAssigned || 0}</p>
-                        <p className="text-xs text-gray-500">Assigned</p>
-                      </div>
-                      <div>
-                        <p className="text-lg font-semibold text-gray-900">{member.stats?.leadsConverted || 0}</p>
-                        <p className="text-xs text-gray-500">Converted</p>
-                      </div>
-                      <div>
-                        <p className="text-lg font-semibold text-green-600">
-                          {formatPercentage(member.stats?.conversionRate || 0)}
-                        </p>
-                        <p className="text-xs text-gray-500">Rate</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => toggleAvailability(member)} className="px-3 py-1 text-sm font-medium bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
-                        {member.is_available ? 'Set Unavailable' : 'Set Available'}
-                      </button>
-                      
-                      {/* CONDITIONAL: Only show Edit/Delete if Admin */}
-                      {canManageTeam && (
-                        <>
-                          <button onClick={() => handleEdit(member)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleDelete(member.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Modal */}
-      {showAddModal && canManageTeam && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-gray-900">
-                {editingMember ? 'Edit Team Member' : 'Add Team Member'}
-              </h2>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              {/* Form Fields */}
-              <div className="space-y-4">
+      {loading ? <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-600" /> : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {members.map(member => (
+            <div key={member.id} className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow">
+              <div className="flex justify-between items-start mb-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
-                  <input
-                    type="text"
-                    name="fullName"
-                    value={formData.fullName}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
-                  />
+                  <h3 className="font-bold text-lg">{member.name || member.full_name || 'Unknown'}</h3>
+                  <span className={`text-xs px-2 py-1 rounded capitalize font-medium ${
+                    member.role === 'admin' ? 'bg-purple-100 text-purple-700' : 
+                    member.role === 'manager' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+                  }`}>
+                    {member.role}
+                  </span>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                    disabled={!!editingMember}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 disabled:bg-gray-100"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
-                  <select
-                    name="role"
-                    value={formData.role}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="agent">Agent</option>
-                    <option value="manager">Manager</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </div>
-                {!editingMember && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Temporary Password</label>
-                    <input
-                      type="text"
-                      name="tempPassword"
-                      value={formData.tempPassword}
-                      onChange={handleChange}
-                      placeholder="Leave empty for auto-generated"
-                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
-                    />
+                
+                {/* 5. Conditional Render: Actions */}
+                {canManageTeam && (
+                  <div className="flex gap-1">
+                    <button onClick={() => handleEdit(member)} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded">
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleDelete(member.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 )}
               </div>
-
-              {error && (
-                <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">
-                  {error}
-                </div>
-              )}
-
-              <div className="flex gap-3 pt-4 border-t">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex justify-center items-center gap-2"
-                >
-                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                  {editingMember ? 'Update' : 'Add Member'}
-                </button>
+              <div className="space-y-1 mb-4">
+                <p className="text-gray-600 text-sm">{member.email}</p>
+                <p className="text-gray-600 text-sm">{member.phone || 'No phone'}</p>
               </div>
-            </form>
-          </div>
+              <div className="border-t pt-4 flex justify-between text-sm items-center">
+                <span className="text-gray-500">Capacity: <span className="font-medium text-gray-900">{member.daily_lead_capacity || 50}</span></span>
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${member.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                  {member.is_active ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       )}
+
+      {showModal && (
+        <MemberModal 
+          member={editingMember} 
+          onClose={closeModal} 
+          onSuccess={() => { closeModal(); fetchMembers(); }} 
+        />
+      )}
+    </div>
+  );
+}
+
+function MemberModal({ member, onClose, onSuccess }: any) {
+  const [formData, setFormData] = useState({
+    name: member?.name || member?.full_name || '',
+    email: member?.email || '',
+    password: '', 
+    phone: member?.phone || '',
+    role: member?.role || 'agent',
+    dailyLeadCapacity: member?.daily_lead_capacity || 50,
+    isActive: member?.is_active ?? true
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const url = '/api/admin/team';
+      const method = member ? 'PATCH' : 'POST';
+      const body = member ? { ...formData, id: member.id } : formData;
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      
+      onSuccess();
+    } catch (err: any) {
+      alert(err.message || 'Error saving member');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
+        <h2 className="text-xl font-bold mb-4">{member ? 'Edit' : 'Add'} Team Member</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Full Name *</label>
+            <input 
+              placeholder="John Doe" 
+              className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none" 
+              value={formData.name} 
+              onChange={e => setFormData({...formData, name: e.target.value})} 
+              required 
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">Email *</label>
+            <input 
+              placeholder="email@example.com" 
+              type="email"
+              className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none" 
+              value={formData.email} 
+              onChange={e => setFormData({...formData, email: e.target.value})} 
+              required 
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              {member ? 'New Password (Optional)' : 'Password *'}
+            </label>
+            <div className="relative">
+              <input 
+                type={showPassword ? "text" : "password"}
+                placeholder={member ? "Leave blank to keep current" : "Min 6 characters"}
+                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none pr-10" 
+                value={formData.password} 
+                onChange={e => setFormData({...formData, password: e.target.value})} 
+                required={!member} 
+                minLength={6}
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+            {member && <p className="text-xs text-gray-500 mt-1">Only enter if you want to change it.</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Phone</label>
+            <input 
+              placeholder="+91 9999999999" 
+              className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none" 
+              value={formData.phone} 
+              onChange={e => setFormData({...formData, phone: e.target.value})} 
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Role</label>
+              <select 
+                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none" 
+                value={formData.role} 
+                onChange={e => setFormData({...formData, role: e.target.value})}
+              >
+                <option value="agent">Agent</option>
+                <option value="manager">Manager</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Daily Capacity</label>
+              <input 
+                type="number"
+                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none" 
+                value={formData.dailyLeadCapacity} 
+                onChange={e => setFormData({...formData, dailyLeadCapacity: parseInt(e.target.value) || 0})}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 pt-2">
+             <input 
+              type="checkbox" 
+              id="isActive"
+              className="w-4 h-4 text-blue-600 rounded"
+              checked={formData.isActive} 
+              onChange={e => setFormData({...formData, isActive: e.target.checked})} 
+            />
+            <label htmlFor="isActive" className="text-sm font-medium cursor-pointer">Account Active</label>
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t mt-2">
+            <button type="button" onClick={onClose} className="flex-1 p-2 border rounded hover:bg-gray-50 transition-colors">Cancel</button>
+            <button type="submit" disabled={submitting} className="flex-1 p-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex justify-center items-center gap-2">
+              {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+              {submitting ? 'Saving...' : 'Save Member'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

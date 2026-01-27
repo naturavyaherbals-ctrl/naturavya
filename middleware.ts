@@ -24,7 +24,7 @@ export async function middleware(request: NextRequest) {
         remove(name: string, options: CookieOptions) {
           request.cookies.set({ name, value: '', ...options });
           response = NextResponse.next({ request: { headers: request.headers } });
-          response.cookies.set({ name, value: '', ...options });
+          response.cookies.set({ name, value, ...options });
         },
       },
     }
@@ -33,20 +33,25 @@ export async function middleware(request: NextRequest) {
   // 3. Check Session
   const { data: { session } } = await supabase.auth.getSession();
 
-  // 4. PROTECT ADMIN ROUTES
-  // Since login is now at /login, we can protect ALL /admin routes safely
+  // -----------------------------------------------------------------
+  // 4. PROTECT ADMIN ROUTES (/admin/*)
+  // -----------------------------------------------------------------
   if (pathname.startsWith('/admin')) {
     if (!session) {
-      // Redirect unauthenticated users to the new login page
-      const loginUrl = new URL('/login', request.url);
+      // Redirect unauthenticated users to the MAIN login page
+      const loginUrl = new URL('/login', request.url); 
       return NextResponse.redirect(loginUrl);
     }
   }
 
+  // -----------------------------------------------------------------
   // 5. REDIRECT IF ALREADY LOGGED IN
-  // If user visits /login but is already logged in, send them to dashboard
+  // -----------------------------------------------------------------
   if (pathname === '/login' && session) {
-    const dashboardUrl = new URL('/admin', request.url);
+    // If logged in, send them to dashboard
+    // NOTE: Ideally check role here, but for now send to admin dashboard
+    // The dashboard itself can redirect to /account if not an admin
+    const dashboardUrl = new URL('/admin/dashboard', request.url);
     return NextResponse.redirect(dashboardUrl);
   }
 
@@ -54,6 +59,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Only run on admin and login paths to save performance
+  // Apply to admin routes and main login page
   matcher: ['/admin/:path*', '/login'],
 };

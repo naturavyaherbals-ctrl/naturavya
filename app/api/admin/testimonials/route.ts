@@ -2,110 +2,102 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
-// GET - Fetch testimonials
-export async function GET(request: NextRequest) {
+// =====================================================
+// GET: Fetch all testimonials
+// =====================================================
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
     const adminClient = createAdminClient();
-
-    const status = searchParams.get('status');
-    const featured = searchParams.get('featured') === 'true';
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
-    const offset = (page - 1) * limit;
-
-    let query = adminClient
+    const { data: testimonials, error } = await adminClient
       .from('testimonials')
-      .select('*', { count: 'exact' });
-
-    if (status) query = query.eq('status', status);
-    if (featured) query = query.eq('is_featured', true);
-
-    query = query
-      .order('display_order', { ascending: true })
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
-
-    const { data, error, count } = await query;
+      .select('*')
+      .order('created_at', { ascending: false });
 
     if (error) throw error;
-
-    return NextResponse.json({
-      success: true,
-      testimonials: data,
-      total: count || 0,
-      page,
-      limit,
-      totalPages: Math.ceil((count || 0) / limit),
-    });
-  } catch (error) {
-    console.error('Testimonials fetch error:', error);
-    return NextResponse.json({ success: false, error: 'Failed to fetch testimonials' }, { status: 500 });
+    return NextResponse.json({ success: true, testimonials: testimonials || [] });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
-// POST - Create testimonial
+// =====================================================
+// POST: Create or Update testimonial
+// =====================================================
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Verify super_admin role
-    const { data: userData } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (!userData || userData.role !== 'super_admin') {
-      return NextResponse.json({ success: false, error: 'Only super admins can create testimonials' }, { status: 403 });
-    }
-
-    const body = await request.json();
     const adminClient = createAdminClient();
+    const body = await request.json();
 
-    if (!body.customerName || !body.content) {
-      return NextResponse.json(
-        { success: false, error: 'Customer name and content are required' },
-        { status: 400 }
-      );
+    const displayName = body.name || body.client_name || 'Anonymous';
+    const displayContent = body.content || body.client_review || body.review || '';
+    const displayQuote = body.short_quote || body.quote || (displayContent.substring(0, 100) + '...');
+
+    const payload: any = {
+      name: displayName,
+      client_name: displayName,
+      content: displayContent,
+      client_review: displayContent,
+      quote: displayQuote,
+      short_quote: displayQuote,
+      rating: parseInt(body.rating || 5),
+      role: body.role || body.customer_title || 'Verified Customer',
+      customer_title: body.customer_title || body.role || null,
+      customer_company: body.customer_company || null,
+      customer_location: body.customer_location || null,
+      customer_avatar_url: body.customer_avatar_url || null,
+      is_active: body.is_active ?? true,
+      is_featured: body.is_featured ?? false,
+      status: body.status || 'published',
+      created_by: user.id,
+      updated_at: new Date().toISOString()
+    };
+
+    let query;
+    if (body.id) {
+      // Update existing
+      query = adminClient.from('testimonials').update(payload).eq('id', body.id);
+    } else {
+      // Insert new
+      query = adminClient.from('testimonials').insert(payload);
     }
 
-    const { data: testimonial, error } = await adminClient
+    const { data, error } = await query.select().single();
+    if (error) throw error;
+
+    return NextResponse.json({ success: true, testimonial: data });
+  } catch (error: any) {
+    console.error('API Error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+// =====================================================
+// DELETE: Remove a testimonial
+// =====================================================
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: 'ID is required' }, { status: 400 });
+    }
+
+    const adminClient = createAdminClient();
+    const { error } = await adminClient
       .from('testimonials')
-      .insert({
-        customer_name: body.customerName,
-        customer_title: body.customerTitle || null,
-        customer_company: body.customerCompany || null,
-        customer_location: body.customerLocation || null,
-        customer_avatar_url: body.customerAvatarUrl || null,
-        content: body.content,
-        short_quote: body.shortQuote || null,
-        rating: body.rating || null,
-        image_url: body.imageUrl || null,
-        video_url: body.videoUrl || null,
-        video_thumbnail_url: body.videoThumbnailUrl || null,
-        category: body.category || null,
-        tags: body.tags || null,
-        status: body.status || 'published',
-        is_featured: body.isFeatured || false,
-        show_on_homepage: body.showOnHomepage || false,
-        display_order: body.displayOrder || 0,
-        display_pages: body.displayPages || null,
-        created_by: user.id,
-      })
-      .select('*')
-      .single();
+      .delete()
+      .eq('id', id);
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true, testimonial });
-  } catch (error) {
-    console.error('Testimonial creation error:', error);
-    return NextResponse.json({ success: false, error: 'Failed to create testimonial' }, { status: 500 });
+    return NextResponse.json({ success: true, message: 'Testimonial deleted' });
+  } catch (error: any) {
+    console.error('Delete Error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

@@ -14,14 +14,39 @@ export async function GET(request: NextRequest) {
 
     const adminClient = createAdminClient();
 
-    const { data: accounts, error } = await adminClient
+    // 1. Attempt query with explicit relationship
+    let { data: accounts, error } = await adminClient
       .from('whatsapp_accounts')
       .select(`
         *,
-        assigned_team_member:team_members!whatsapp_accounts_assigned_to_fkey(*, user:users(*))
-      `)
+        assigned_team_member:team_members!whatsapp_accounts_assigned_to_fkey(*)
+      `) // 👈 Removed ", user:users(*)"
       .order('is_primary', { ascending: false })
       .order('created_at', { ascending: false });
+
+    // 2. Fallback if explicit relationship name is wrong/changed
+    if (error && error.code === 'PGRST200') {
+        console.warn("Retrying fetch accounts with simple join...");
+        const retry = await adminClient
+          .from('whatsapp_accounts')
+          .select(`
+            *,
+            assigned_team_member:team_members(*)
+          `)
+          .order('is_primary', { ascending: false });
+          
+        if (!retry.error) {
+            accounts = retry.data;
+            error = null;
+        } else {
+            // Last resort: fetch accounts only
+            const finalRetry = await adminClient
+                .from('whatsapp_accounts')
+                .select('*');
+            accounts = finalRetry.data;
+            error = null; 
+        }
+    }
 
     if (error) throw error;
 
@@ -32,8 +57,12 @@ export async function GET(request: NextRequest) {
     }));
 
     return NextResponse.json({ success: true, accounts: sanitizedAccounts });
-  } catch (error) {
+  } catch (error: any) {
     console.error('WhatsApp accounts fetch error:', error);
-    return NextResponse.json({ success: false, error: 'Failed to fetch accounts' }, { status: 500 });
+    return NextResponse.json({ 
+        success: false, 
+        error: 'Failed to fetch accounts',
+        details: error.message 
+    }, { status: 500 });
   }
 }

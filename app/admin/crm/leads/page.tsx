@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation'; // Added useRouter
 import {
   Phone,
   MessageCircle,
@@ -10,7 +10,8 @@ import {
   Filter,
   Download,
   UserPlus,
-  Search
+  Search,
+  RefreshCw
 } from 'lucide-react';
 import { DataTable } from '@/components/admin/DataTable';
 import { LeadStatusBadge } from '@/components/admin/LeadStatusBadge';
@@ -18,6 +19,7 @@ import { useLeads } from '@/lib/hooks/useLeads';
 import { useRealtimeLeads } from '@/lib/hooks/useRealtime';
 import { formatRelativeTime, formatPhoneNumber } from '@/lib/utils/formatters';
 import { LeadStatus, LeadSource } from '@/types/database';
+import { createClient } from '@/lib/supabase/client'; // Added to get current user
 
 const LEAD_STATUSES: { value: LeadStatus | ''; label: string }[] = [
   { value: '', label: 'All Statuses' },
@@ -32,25 +34,27 @@ const LEAD_STATUSES: { value: LeadStatus | ''; label: string }[] = [
   { value: 'callback', label: 'Callback' },
 ];
 
-const LEAD_SOURCES: { value: LeadSource | ''; label: string }[] = [
-  { value: '', label: 'All Sources' },
-  { value: 'meta_ads', label: 'Meta Ads' },
-  { value: 'google_ads', label: 'Google Ads' },
-  { value: 'website', label: 'Website' },
-  { value: 'referral', label: 'Referral' },
-  { value: 'manual', label: 'Manual' },
-  { value: 'whatsapp', label: 'WhatsApp' },
-  { value: 'phone', label: 'Phone' },
-];
-
 export default function CRMLeadsPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const supabase = createClient();
+  
   const showMyLeads = searchParams.get('my') === 'true';
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<LeadStatus | ''>('');
   const [sourceFilter, setSourceFilter] = useState<LeadSource | ''>('');
   const [showQuickActions, setShowQuickActions] = useState<string | null>(null);
+
+  // Get current user ID for "My Leads" filter
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setCurrentUserId(user.id);
+    };
+    getUser();
+  }, []);
 
   const {
     leads,
@@ -65,6 +69,8 @@ export default function CRMLeadsPage() {
     status: statusFilter || undefined,
     source: sourceFilter || undefined,
     search: search || undefined,
+    // 👇 FIX: Pass assigned_to filter if showMyLeads is true
+    assigned_to: showMyLeads ? currentUserId : undefined, 
   });
 
   // Realtime updates
@@ -72,23 +78,6 @@ export default function CRMLeadsPage() {
     onNewLead: () => fetchLeads(),
     onLeadUpdate: () => fetchLeads(),
   });
-
-  const handleQuickStatusChange = async (leadId: string, status: LeadStatus) => {
-    await updateLeadStatus(leadId, status);
-    setShowQuickActions(null);
-  };
-
-  const handleCall = (phone: string, leadId: string) => {
-    window.open(`tel:${phone}`, '_self');
-    // Log the call attempt
-    logCall(leadId, 'attempted', 'Call initiated from CRM');
-  };
-
-  const handleWhatsApp = (phone: string) => {
-    const formattedPhone = phone.replace(/\D/g, '');
-    const phoneWithCountry = formattedPhone.length === 10 ? `91${formattedPhone}` : formattedPhone;
-    window.open(`https://wa.me/${phoneWithCountry}`, '_blank');
-  };
 
   const columns = [
     {
@@ -98,21 +87,6 @@ export default function CRMLeadsPage() {
         <div>
           <p className="font-medium text-gray-900">{lead.full_name}</p>
           <p className="text-sm text-gray-500">{formatPhoneNumber(lead.phone)}</p>
-          {lead.email && <p className="text-xs text-gray-400">{lead.email}</p>}
-        </div>
-      ),
-    },
-    {
-      key: 'source',
-      header: 'Source',
-      render: (lead: any) => (
-        <div>
-          <p className="capitalize text-gray-900">{lead.source.replace('_', ' ')}</p>
-          {lead.source_campaign && (
-            <p className="text-xs text-gray-500 truncate max-w-[150px]">
-              {lead.source_campaign}
-            </p>
-          )}
         </div>
       ),
     },
@@ -120,35 +94,7 @@ export default function CRMLeadsPage() {
       key: 'status',
       header: 'Status',
       render: (lead: any) => (
-        <div className="relative">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowQuickActions(showQuickActions === lead.id ? null : lead.id);
-            }}
-            className="hover:opacity-80"
-          >
-            <LeadStatusBadge status={lead.status} />
-          </button>
-          
-          {/* Quick status change dropdown */}
-          {showQuickActions === lead.id && (
-            <div className="absolute z-10 mt-1 bg-white rounded-lg shadow-lg border py-1 min-w-[150px]">
-              {LEAD_STATUSES.filter(s => s.value && s.value !== lead.status).map((status) => (
-                <button
-                  key={status.value}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleQuickStatusChange(lead.id, status.value as LeadStatus);
-                  }}
-                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
-                >
-                  {status.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <LeadStatusBadge status={lead.status} />
       ),
     },
     {
@@ -156,78 +102,53 @@ export default function CRMLeadsPage() {
       header: 'Assigned To',
       render: (lead: any) => (
         <div>
+          {/* 👇 FIX: Use .name instead of .user.full_name */}
           {lead.assigned_team_member ? (
-            <>
-              <p className="text-gray-900">{lead.assigned_team_member.user?.full_name}</p>
-              <p className="text-xs text-gray-500">
-                {formatRelativeTime(lead.assigned_at)}
-              </p>
-            </>
+            <p className="text-gray-900 font-medium">
+              {lead.assigned_team_member.name || lead.assigned_team_member.email}
+            </p>
           ) : (
-            <span className="text-gray-400">Unassigned</span>
+            <span className="text-gray-400 italic text-sm">Unassigned</span>
           )}
         </div>
       ),
     },
     {
-      key: 'activity',
-      header: 'Activity',
+      key: 'created',
+      header: 'Created',
       render: (lead: any) => (
-        <div className="text-sm">
-          <p className="text-gray-600">
-            {lead.call_attempts} calls
-          </p>
-          {lead.next_follow_up && (
-            <p className="text-xs text-orange-600">
-              Follow-up: {formatRelativeTime(lead.next_follow_up)}
-            </p>
-          )}
-          <p className="text-xs text-gray-400">
-            {formatRelativeTime(lead.created_at)}
-          </p>
-        </div>
+        <p className="text-xs text-gray-400">
+          {formatRelativeTime(lead.created_at)}
+        </p>
       ),
     },
     {
       key: 'actions',
       header: 'Actions',
       render: (lead: any) => (
-        <div className="flex items-center gap-1">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleCall(lead.phone, lead.id);
-            }}
-            className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
-            title="Call"
-          >
-            <Phone className="w-4 h-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleWhatsApp(lead.phone);
-            }}
-            className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
-            title="WhatsApp"
-          >
-            <MessageCircle className="w-4 h-4" />
-          </button>
-          <Link
+        <div className="flex items-center gap-2">
+           <Link
             href={`/admin/crm/leads/${lead.id}`}
-            onClick={(e) => e.stopPropagation()}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
-            title="View Details"
+            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
           >
             <Eye className="w-4 h-4" />
           </Link>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              window.open(`tel:${lead.phone}`, '_self');
+            }}
+            className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
+          >
+            <Phone className="w-4 h-4" />
+          </button>
         </div>
       ),
     },
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -237,6 +158,12 @@ export default function CRMLeadsPage() {
           <p className="text-gray-600 mt-1">{total} total leads</p>
         </div>
         <div className="flex gap-3">
+          <button 
+            onClick={() => fetchLeads()}
+            className="p-2 border rounded-lg hover:bg-gray-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
           <Link
             href="/admin/crm/leads/new"
             className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
@@ -244,30 +171,42 @@ export default function CRMLeadsPage() {
             <UserPlus className="w-4 h-4" />
             Add Lead
           </Link>
-          <button className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-            <Download className="w-4 h-4" />
-            Export
-          </button>
         </div>
+      </div>
+
+      {/* Tabs for All vs My */}
+      <div className="flex border-b">
+        <button
+          onClick={() => router.push('/admin/crm/leads')}
+          className={`px-4 py-2 font-medium ${!showMyLeads ? 'border-b-2 border-green-500 text-green-600' : 'text-gray-500'}`}
+        >
+          All Leads
+        </button>
+        <button
+          onClick={() => router.push('/admin/crm/leads?my=true')}
+          className={`px-4 py-2 font-medium ${showMyLeads ? 'border-b-2 border-green-500 text-green-600' : 'text-gray-500'}`}
+        >
+          My Leads
+        </button>
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-4">
-        <div className="relative min-w-[250px]">
+        <div className="relative flex-1 min-w-[300px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search leads..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+            placeholder="Search name, phone or email..."
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
           />
         </div>
 
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as LeadStatus | '')}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+          className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
         >
           {LEAD_STATUSES.map((status) => (
             <option key={status.value} value={status.value}>
@@ -275,44 +214,26 @@ export default function CRMLeadsPage() {
             </option>
           ))}
         </select>
-
-        <select
-          value={sourceFilter}
-          onChange={(e) => setSourceFilter(e.target.value as LeadSource | '')}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-        >
-          {LEAD_SOURCES.map((source) => (
-            <option key={source.value} value={source.value}>
-              {source.label}
-            </option>
-          ))}
-        </select>
       </div>
 
       {/* Data Table */}
-      <DataTable
-        columns={columns}
-        data={leads}
-        keyExtractor={(lead) => lead.id}
-        isLoading={isLoading}
-        pagination={{
-          page,
-          totalPages,
-          total,
-          onPageChange: (p) => fetchLeads(p),
-        }}
-        onRowClick={(lead) => {
-          window.location.href = `/admin/crm/leads/${lead.id}`;
-        }}
-      />
-
-      {/* Click outside to close quick actions */}
-      {showQuickActions && (
-        <div
-          className="fixed inset-0 z-0"
-          onClick={() => setShowQuickActions(null)}
+      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+        <DataTable
+          columns={columns}
+          data={leads}
+          keyExtractor={(lead) => lead.id}
+          isLoading={isLoading}
+          pagination={{
+            page,
+            totalPages,
+            total,
+            onPageChange: (p) => fetchLeads(p),
+          }}
+          onRowClick={(lead) => {
+            router.push(`/admin/crm/leads/${lead.id}`);
+          }}
         />
-      )}
+      </div>
     </div>
   );
 }

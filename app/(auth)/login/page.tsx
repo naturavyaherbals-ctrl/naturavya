@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { login, signup } from "./actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,19 +11,22 @@ import { Loader2, ArrowLeft, Mail, Lock, User, Sparkles } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Float } from '@react-three/drei'
+import * as THREE from "three"
 
 /* -------------------------------------------------------------------------- */
 /* 1. 3D BACKGROUND ELEMENTS                                                  */
 /* -------------------------------------------------------------------------- */
 
-function LuxuryCrystal({ position, scale = 1, speed = 1 }: any) {
-  const meshRef = useRef<any>()
+function LuxuryCrystal({ position, scale = 1, speed = 1 }: { position: [number, number, number], scale?: number, speed?: number }) {
+  const meshRef = useRef<THREE.Mesh>(null)
+  
   useFrame((state) => {
     if (meshRef.current) {
       meshRef.current.rotation.y = state.clock.elapsedTime * 0.1 * speed
       meshRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.2 * speed) * 0.05
     }
   })
+
   return (
     <Float speed={1.5 * speed} rotationIntensity={0.5} floatIntensity={0.5}>
       <mesh ref={meshRef} position={position} scale={scale}>
@@ -43,7 +47,7 @@ function LuxuryCrystal({ position, scale = 1, speed = 1 }: any) {
 
 function LoginBackground3D() {
   return (
-    <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden fixed">
+    <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden fixed h-full w-full">
       <Canvas camera={{ position: [0, 0, 8] }} gl={{ alpha: true }}>
         <ambientLight intensity={0.6} />
         <directionalLight position={[5, 5, 5]} intensity={1} color="#fcd34d" />
@@ -63,21 +67,47 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
 
   async function handleSubmit(formData: FormData) {
     setLoading(true)
     setError(null)
     setMessage(null)
 
-    if (isLogin) {
-      const res = await login(formData)
-      if (res?.error) setError(res.error)
-    } else {
-      const res = await signup(formData)
-      if (res?.error) setError(res.error)
-      if (res?.success) setMessage(res.success)
+    try {
+      if (isLogin) {
+        // Login Logic
+        const res = await login(formData)
+        
+        if (res?.error) {
+          setError(res.error)
+          setLoading(false)
+        } else if (res?.success) {
+          // Success: Check role and redirect
+          const role = res.role || 'customer'
+          
+          if (['admin', 'super_admin', 'manager', 'agent'].includes(role)) {
+            router.push('/admin/dashboard')
+          } else {
+            router.push('/account')
+          }
+          // Note: We intentionally DO NOT set loading(false) here
+          // so the button keeps spinning during the page transition.
+        }
+      } else {
+        // Signup Logic
+        const res = await signup(formData)
+        if (res?.error) {
+          setError(res.error)
+        } else if (res?.success) {
+          setMessage("Account created! Please check your email to confirm.")
+        }
+        setLoading(false)
+      }
+    } catch (err: any) {
+      setError("An unexpected error occurred. Please try again.")
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (
@@ -134,17 +164,28 @@ export default function LoginPage() {
           {/* Messages */}
           <AnimatePresence>
             {error && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="bg-red-50/80 border border-red-100 text-red-700 p-3 rounded-xl text-sm mb-6 text-center">
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }} 
+                animate={{ opacity: 1, height: "auto" }} 
+                exit={{ opacity: 0, height: 0 }}
+                className="bg-red-50/80 border border-red-100 text-red-700 p-3 rounded-xl text-sm mb-6 text-center"
+              >
                 {error}
               </motion.div>
             )}
             {message && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="bg-emerald-50/80 border border-emerald-100 text-emerald-700 p-3 rounded-xl text-sm mb-6 text-center">
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }} 
+                animate={{ opacity: 1, height: "auto" }} 
+                exit={{ opacity: 0, height: 0 }}
+                className="bg-emerald-50/80 border border-emerald-100 text-emerald-700 p-3 rounded-xl text-sm mb-6 text-center"
+              >
                 {message}
               </motion.div>
             )}
           </AnimatePresence>
 
+          {/* Form */}
           <form action={handleSubmit} className="space-y-5">
             
             <AnimatePresence>
@@ -160,7 +201,13 @@ export default function LoginPage() {
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-600 group-focus-within:text-amber-600 transition-colors">
                         <User className="h-4 w-4" />
                     </div>
-                    <Input id="name" name="name" placeholder="John Doe" required className="pl-12 h-12 bg-white/50 border-emerald-100/50 rounded-xl focus:ring-2 focus:ring-amber-200 focus:border-amber-300 transition-all text-emerald-900" />
+                    <Input 
+                      id="name" 
+                      name="name" 
+                      placeholder="John Doe" 
+                      required={!isLogin} 
+                      className="pl-12 h-12 bg-white/50 border-emerald-100/50 rounded-xl focus:ring-2 focus:ring-amber-200 focus:border-amber-300 transition-all text-emerald-900" 
+                    />
                   </div>
                 </motion.div>
               )}
@@ -172,7 +219,14 @@ export default function LoginPage() {
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-600 group-focus-within:text-amber-600 transition-colors">
                     <Mail className="h-4 w-4" />
                 </div>
-                <Input id="email" name="email" type="email" placeholder="hello@example.com" required className="pl-12 h-12 bg-white/50 border-emerald-100/50 rounded-xl focus:ring-2 focus:ring-amber-200 focus:border-amber-300 transition-all text-emerald-900" />
+                <Input 
+                  id="email" 
+                  name="email" 
+                  type="email" 
+                  placeholder="hello@example.com" 
+                  required 
+                  className="pl-12 h-12 bg-white/50 border-emerald-100/50 rounded-xl focus:ring-2 focus:ring-amber-200 focus:border-amber-300 transition-all text-emerald-900" 
+                />
               </div>
             </div>
 
@@ -182,11 +236,22 @@ export default function LoginPage() {
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-600 group-focus-within:text-amber-600 transition-colors">
                     <Lock className="h-4 w-4" />
                 </div>
-                <Input id="password" name="password" type="password" placeholder="••••••••" required className="pl-12 h-12 bg-white/50 border-emerald-100/50 rounded-xl focus:ring-2 focus:ring-amber-200 focus:border-amber-300 transition-all text-emerald-900" />
+                <Input 
+                  id="password" 
+                  name="password" 
+                  type="password" 
+                  placeholder="••••••••" 
+                  required 
+                  className="pl-12 h-12 bg-white/50 border-emerald-100/50 rounded-xl focus:ring-2 focus:ring-amber-200 focus:border-amber-300 transition-all text-emerald-900" 
+                />
               </div>
             </div>
 
-            <Button type="submit" className="w-full h-12 bg-gradient-to-r from-emerald-900 to-teal-800 text-white rounded-xl font-bold shadow-lg hover:shadow-emerald-900/20 transition-all mt-4" disabled={loading}>
+            <Button 
+              type="submit" 
+              className="w-full h-12 bg-gradient-to-r from-emerald-900 to-teal-800 text-white rounded-xl font-bold shadow-lg hover:shadow-emerald-900/20 transition-all mt-4" 
+              disabled={loading}
+            >
               {loading ? <Loader2 className="animate-spin" /> : (isLogin ? "Sign In" : "Create Account")}
             </Button>
           </form>

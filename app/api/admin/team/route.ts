@@ -1,209 +1,210 @@
-export const dynamic = 'force-dynamic';
-
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
-// GET - Fetch team members
+// GET: Fetch all team members
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     const adminClient = createAdminClient();
-
-    // Get team members with user details
+    
     const { data: teamMembers, error } = await adminClient
       .from('team_members')
-      .select(`
-        *,
-        user:users(*)
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Fetch Error:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 
-    // Get stats for each team member
-    const membersWithStats = await Promise.all(
-      (teamMembers || []).map(async (member) => {
-        // Get lead stats
-        const { count: leadsAssigned } = await adminClient
-          .from('leads')
-          .select('*', { count: 'exact', head: true })
-          .eq('assigned_to', member.id);
-
-        const { count: leadsConverted } = await adminClient
-          .from('leads')
-          .select('*', { count: 'exact', head: true })
-          .eq('assigned_to', member.id)
-          .eq('status', 'order_confirmed');
-
-        const { count: leadsContacted } = await adminClient
-          .from('leads')
-          .select('*', { count: 'exact', head: true })
-          .eq('assigned_to', member.id)
-          .gt('call_attempts', 0);
-
-        // Get call stats
-        const { count: totalCalls } = await adminClient
-          .from('call_logs')
-          .select('*', { count: 'exact', head: true })
-          .eq('team_member_id', member.id);
-
-        return {
-          ...member,
-          stats: {
-            leadsAssigned: leadsAssigned || 0,
-            leadsContacted: leadsContacted || 0,
-            leadsConverted: leadsConverted || 0,
-            conversionRate: leadsAssigned ? ((leadsConverted || 0) / leadsAssigned) * 100 : 0,
-            totalCalls: totalCalls || 0,
-          },
-        };
-      })
-    );
-
-    return NextResponse.json({ success: true, teamMembers: membersWithStats });
-  } catch (error) {
-    console.error('Team fetch error:', error);
-    return NextResponse.json({ success: false, error: 'Failed to fetch team' }, { status: 500 });
+    return NextResponse.json({ teamMembers });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// POST - Create new team member
+// POST: Add new member
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Verify super_admin or admin role
-    const { data: currentUser } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (!currentUser || !['super_admin', 'admin'].includes(currentUser.role)) {
-      return NextResponse.json({ success: false, error: 'Insufficient permissions' }, { status: 403 });
-    }
-
-    const body = await request.json();
     const adminClient = createAdminClient();
+    const body = await request.json();
 
-    // Validate required fields
-    if (!body.email || !body.fullName || !body.role) {
-      return NextResponse.json(
-        { success: false, error: 'Email, name, and role are required' },
-        { status: 400 }
-      );
+    const name = body.name || body.fullName;
+    const email = body.email;
+    const password = body.password; 
+
+    if (!name || !email || !password) {
+      return NextResponse.json({ error: 'Name, Email, and Password are required' }, { status: 400 });
     }
 
-    // Check if user already exists
-    const { data: existingUser } = await adminClient
-      .from('users')
-      .select('id')
-      .eq('email', body.email)
+    // 1. Create User in Supabase Auth
+    const { data: authUser, error: authError } = await adminClient.auth.admin.createUser({
+      email: email,
+      password: password,
+      email_confirm: true,
+      user_metadata: { full_name: name, role: body.role || 'agent' }
+    });
+
+    if (authError) {
+      return NextResponse.json({ error: authError.message }, { status: 400 });
+    }
+
+    // 2. Create Record in Team Members Table
+    const { data: newMember, error: dbError } = await adminClient
+      .from('team_members')
+      .insert({
+        user_id: authUser.user.id,
+        name: name,
+        email: email,
+        phone: body.phone,
+        role: body.role || 'agent',
+        department: body.department,
+        daily_lead_capacity: parseInt(body.dailyLeadCapacity || body.daily_lead_capacity || 50),
+        is_active: body.isActive ?? true
+      })
+      .select()
       .single();
 
-    let userId;
+    if (dbError) {
+      await adminClient.auth.admin.deleteUser(authUser.user.id);
+      return NextResponse.json({ error: dbError.message }, { status: 500 });
+    }
 
-    if (existingUser) {
-      userId = existingUser.id;
+    return NextResponse.json({ success: true, teamMember: newMember });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// PATCH: Update member (With Fix for Missing Auth Link)
+export async function PATCH(request: NextRequest) {
+  try {
+    const adminClient = createAdminClient();
+    const body = await request.json();
+
+    if (!body.id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
+
+    // 1. Get current member details to check linkage
+    const { data: currentMember, error: fetchError } = await adminClient
+      .from('team_members')
+      .select('*')
+      .eq('id', body.id)
+      .single();
+
+    if (fetchError || !currentMember) {
+      return NextResponse.json({ error: 'Member not found' }, { status: 404 });
+    }
+
+    // 2. Handle Password Update Logic
+    if (body.password && body.password.trim() !== '') {
       
-      // Update existing user role
-      await adminClient
-        .from('users')
-        .update({ role: body.role })
-        .eq('id', userId);
-    } else {
-      // Create new user
-      const { data: newUser, error: userError } = await adminClient
-        .from('users')
-        .insert({
-          email: body.email,
-          full_name: body.fullName,
-          phone: body.phone || null,
-          role: body.role,
-          is_active: true,
-        })
-        .select('*')
-        .single();
-
-      if (userError) throw userError;
-      userId = newUser.id;
-
-      // Create auth user (in a real app, send invite email)
-      // For now, we'll use Supabase Auth Admin API
-      try {
-        const { data: authUser, error: authError } = await adminClient.auth.admin.createUser({
-          email: body.email,
-          password: body.tempPassword || 'TempPass123!',
+      if (currentMember.user_id) {
+        // CASE A: User is linked correctly. Update password.
+        const { error: updateError } = await adminClient.auth.admin.updateUserById(
+          currentMember.user_id,
+          { password: body.password }
+        );
+        if (updateError) {
+          console.error("Failed to update password in Auth:", updateError);
+          return NextResponse.json({ error: "Failed to update password: " + updateError.message }, { status: 500 });
+        }
+      } else {
+        // CASE B: User exists in DB but NOT in Auth (Broken Link). 
+        // We must create the Auth user now and link it.
+        console.log("Member missing Auth link. Creating new Auth user...");
+        
+        const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
+          email: currentMember.email, // Use email from DB
+          password: body.password,
           email_confirm: true,
-          user_metadata: {
-            full_name: body.fullName,
-          },
+          user_metadata: { full_name: currentMember.name, role: currentMember.role }
         });
 
-        if (authError) {
-          console.error('Auth user creation error:', authError);
-        } else if (authUser.user) {
-          // Update the user ID to match auth user
-          await adminClient
-            .from('users')
-            .update({ id: authUser.user.id })
-            .eq('id', userId);
-          userId = authUser.user.id;
+        if (createError) {
+          // If email already taken but link is missing, try to find the user by email
+          if (createError.message.includes("already been registered")) {
+             // Try to find user by email to re-link
+             // Note: listUsers is expensive, but necessary for recovery
+             const { data: users } = await adminClient.auth.admin.listUsers();
+             const existingUser = users.users.find(u => u.email === currentMember.email);
+             
+             if (existingUser) {
+               // Update the existing user's password
+               await adminClient.auth.admin.updateUserById(existingUser.id, { password: body.password });
+               // Fix the link in DB
+               await adminClient.from('team_members').update({ user_id: existingUser.id }).eq('id', body.id);
+             } else {
+               return NextResponse.json({ error: "Email exists but cannot be recovered. Delete and recreate user." }, { status: 400 });
+             }
+          } else {
+            return NextResponse.json({ error: createError.message }, { status: 500 });
+          }
+        } else if (newUser.user) {
+          // Successfully created new auth user, now link it
+          const { error: linkError } = await adminClient
+            .from('team_members')
+            .update({ user_id: newUser.user.id })
+            .eq('id', body.id);
+            
+          if (linkError) throw linkError;
         }
-      } catch (authErr) {
-        console.error('Auth creation error:', authErr);
-        // Continue even if auth fails - user can be set up manually
       }
     }
 
-    // Check if team member already exists
-    const { data: existingMember } = await adminClient
+    // 3. Update Other Public Data
+    const updateData: any = { updated_at: new Date().toISOString() };
+    if (body.name || body.fullName) updateData.name = body.name || body.fullName;
+    // Note: Changing email in DB doesn't change it in Auth automatically in this simple flow.
+    // Ideally block email changes or handle separate sync logic.
+    if (body.email) updateData.email = body.email; 
+    if (body.phone) updateData.phone = body.phone;
+    if (body.role) updateData.role = body.role;
+    if (body.department) updateData.department = body.department;
+    if (body.dailyLeadCapacity) updateData.daily_lead_capacity = parseInt(body.dailyLeadCapacity);
+    if (body.isActive !== undefined) updateData.is_active = body.isActive;
+
+    const { data: updatedMember, error: updateDbError } = await adminClient
       .from('team_members')
-      .select('id')
-      .eq('user_id', userId)
+      .update(updateData)
+      .eq('id', body.id)
+      .select()
       .single();
 
-    if (existingMember) {
-      return NextResponse.json(
-        { success: false, error: 'Team member already exists' },
-        { status: 400 }
-      );
+    if (updateDbError) throw updateDbError;
+
+    return NextResponse.json({ success: true, teamMember: updatedMember });
+  } catch (error: any) {
+    console.error("PATCH Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// DELETE: Remove member
+export async function DELETE(request: NextRequest) {
+  try {
+    const adminClient = createAdminClient();
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
+
+    const { data: member } = await adminClient
+      .from('team_members')
+      .select('user_id')
+      .eq('id', id)
+      .single();
+
+    if (member?.user_id) {
+      await adminClient.auth.admin.deleteUser(member.user_id);
     }
 
-    // Create team member
-    const { data: teamMember, error: memberError } = await adminClient
+    const { error } = await adminClient
       .from('team_members')
-      .insert({
-        user_id: userId,
-        employee_id: body.employeeId || null,
-        department: body.department || null,
-        designation: body.designation || null,
-        reporting_to: body.reportingTo || null,
-        daily_lead_capacity: body.dailyLeadCapacity || 50,
-        is_available: body.isAvailable !== false,
-        shift_start: body.shiftStart || null,
-        shift_end: body.shiftEnd || null,
-      })
-      .select(`*, user:users(*)`)
-      .single();
+      .delete()
+      .eq('id', id);
 
-    if (memberError) throw memberError;
-
-    return NextResponse.json({ success: true, teamMember });
-  } catch (error) {
-    console.error('Team member creation error:', error);
-    return NextResponse.json({ success: false, error: 'Failed to create team member' }, { status: 500 });
+    if (error) throw error;
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

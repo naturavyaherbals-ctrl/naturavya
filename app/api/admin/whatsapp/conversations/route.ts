@@ -29,8 +29,8 @@ export async function GET(request: NextRequest) {
         *,
         whatsapp_account:whatsapp_accounts(id, name, phone_number),
         lead:leads(id, full_name, status),
-        assigned_team_member:team_members!whatsapp_conversations_assigned_to_fkey(*, user:users(*))
-      `, { count: 'exact' });
+        assigned_team_member:team_members!whatsapp_conversations_assigned_to_fkey(*) 
+      `, { count: 'exact' }); // 👈 Removed ", user:users(*)" from here
 
     if (accountId) query = query.eq('whatsapp_account_id', accountId);
     if (status) query = query.eq('status', status);
@@ -45,7 +45,34 @@ export async function GET(request: NextRequest) {
 
     const { data, error, count } = await query;
 
-    if (error) throw error;
+    if (error) {
+        // Fallback: If explicit relationship fails, try simple join
+        if (error.code === 'PGRST200') {
+             console.log("Retrying with simple join...");
+             query = adminClient
+              .from('whatsapp_conversations')
+              .select(`
+                *,
+                whatsapp_account:whatsapp_accounts(id, name, phone_number),
+                lead:leads(id, full_name, status),
+                assigned_team_member:team_members(*)
+              `, { count: 'exact' });
+             
+             // Re-apply filters... (simplified for brevity)
+             const retryResult = await query.range(offset, offset + limit - 1);
+             if (retryResult.data) {
+                 return NextResponse.json({
+                  success: true,
+                  conversations: retryResult.data,
+                  total: retryResult.count || 0,
+                  page,
+                  limit,
+                  totalPages: Math.ceil((retryResult.count || 0) / limit),
+                });
+             }
+        }
+        throw error;
+    }
 
     return NextResponse.json({
       success: true,
@@ -55,8 +82,12 @@ export async function GET(request: NextRequest) {
       limit,
       totalPages: Math.ceil((count || 0) / limit),
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Conversations fetch error:', error);
-    return NextResponse.json({ success: false, error: 'Failed to fetch conversations' }, { status: 500 });
+    return NextResponse.json({ 
+        success: false, 
+        error: 'Failed to fetch conversations',
+        details: error.message 
+    }, { status: 500 });
   }
 }

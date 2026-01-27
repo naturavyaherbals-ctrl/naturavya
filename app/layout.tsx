@@ -3,7 +3,8 @@ import { Inter } from "next/font/google"
 import Script from "next/script" // 👈 Added Script Import
 import "./globals.css"
 import { CartProvider } from "@/app/context/cart-context"
-import LayoutWrapper from "@/components/layout-wrapper" 
+import LayoutWrapper from "@/components/layout-wrapper"
+import Providers from "./providers" 
 
 // Import Navbar and Footer here (Server Side)
 import { Navbar } from "@/components/navbar"
@@ -62,7 +63,9 @@ export default function RootLayout({
             navbar={<Navbar />} 
             footer={<Footer />}
           >
+          <Providers>
             {children}
+          </Providers>
           </LayoutWrapper>
         </CartProvider>
       </body>
