@@ -4,28 +4,43 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { 
   ArrowLeft, Phone, Mail, MapPin, Calendar, Tag, User, 
-  Clock, Edit, X, Save, Loader2, UserPlus, CheckCircle
+  Clock, Edit, X, Save, Loader2, UserPlus, Package, ArrowRight
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { createClient } from '@/lib/supabase/client';
 
 export default function LeadDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const leadId = params?.leadId as string;
+  const supabase = createClient();
 
   const [lead, setLead] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [userRole, setUserRole] = useState<string>('');
 
-  // Fetch lead data
+  // Fetch lead data and current user role
   const fetchLead = async () => {
     if (!leadId) return;
     try {
+      // 1. Get Lead
       const res = await fetch(`/api/admin/leads/${leadId}`);
       const data = await res.json();
       if (data.lead) setLead(data.lead);
+
+      // 2. Get User Role for permissions
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: member } = await supabase
+          .from('team_members')
+          .select('role')
+          .eq('user_id', user.id)
+          .single();
+        setUserRole(member?.role || 'agent');
+      }
     } catch (error) {
-      console.error('Error fetching lead:', error);
+      console.error('Error fetching lead details:', error);
     } finally {
       setLoading(false);
     }
@@ -34,6 +49,17 @@ export default function LeadDetailsPage() {
   useEffect(() => {
     fetchLead();
   }, [leadId]);
+
+  // Handler to navigate to manual order with pre-filled details
+  const handleCreateOrder = () => {
+    const query = new URLSearchParams({
+      name: lead.full_name,
+      phone: lead.phone,
+      email: lead.email || '',
+      leadId: lead.id
+    }).toString();
+    router.push(`/admin/orders/manual?${query}`);
+  };
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen">
@@ -48,132 +74,148 @@ export default function LeadDetailsPage() {
     </div>
   );
 
+  const canEdit = ['super_admin', 'admin'].includes(userRole) || lead.assigned_to === lead.current_user_team_id;
+
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-      {/* Header */}
-      <div className="max-w-5xl mx-auto mb-6">
-        <button 
-          onClick={() => router.back()} 
-          className="flex items-center text-gray-500 hover:text-gray-800 mb-4 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4 mr-1" /> Back to Leads
-        </button>
-        
-        <div className="flex flex-col md:flex-row justify-between items-start gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">{lead.full_name}</h1>
-            <div className="flex flex-wrap items-center gap-3 mt-2">
-              <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${getStatusColor(lead.status)}`}>
-                {lead.status}
-              </span>
-              <span className="text-gray-500 text-sm flex items-center">
-                <Calendar className="w-4 h-4 mr-1" />
-                Created {format(new Date(lead.created_at), 'MMM d, yyyy')}
-              </span>
-            </div>
-          </div>
-          
+    <div className="min-h-screen bg-gray-50 p-4 md:p-8 pb-20">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
           <button 
-            onClick={() => setShowEditModal(true)}
-            className="px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 flex items-center gap-2 transition-all active:scale-95"
+            onClick={() => router.back()} 
+            className="flex items-center text-gray-500 hover:text-gray-800 mb-6 transition-colors group"
           >
-            <Edit className="w-4 h-4" /> Edit Lead
+            <ArrowLeft className="w-4 h-4 mr-2 transition-transform group-hover:-translate-x-1" /> 
+            Back to leads
           </button>
-        </div>
-      </div>
-
-      {/* Content Grid */}
-      <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
-        
-        {/* Left Column: Contact & Interests */}
-        <div className="md:col-span-2 space-y-6">
           
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-800">
-              <User className="w-5 h-5 text-blue-500" /> Contact Information
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Primary Phone</p>
-                <p className="font-semibold text-gray-900 flex items-center gap-2">
-                  <Phone className="w-4 h-4 text-blue-500" /> {lead.phone}
-                </p>
-              </div>
-              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Email Address</p>
-                <p className="font-semibold text-gray-900 flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-blue-500" /> {lead.email || 'No email provided'}
-                </p>
-              </div>
-              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 md:col-span-2">
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Address Details</p>
-                <p className="font-semibold text-gray-900 flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-blue-500" /> 
-                  {[lead.address, lead.city, lead.state, lead.pincode].filter(Boolean).join(', ') || 'No address provided'}
-                </p>
-              </div>
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+            <div className="flex items-center gap-4">
+               <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-xl shadow-blue-100">
+                  {lead.full_name?.[0]}
+               </div>
+               <div>
+                  <h1 className="text-3xl font-bold text-gray-900">{lead.full_name}</h1>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className={`px-3 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${getStatusColor(lead.status)}`}>
+                      {lead.status}
+                    </span>
+                    <span className="text-gray-400 text-sm flex items-center">
+                      <Clock className="w-3.5 h-3.5 mr-1" />
+                      Created {format(new Date(lead.created_at), 'MMM d, h:mm a')}
+                    </span>
+                  </div>
+               </div>
             </div>
-          </div>
+            
+            <div className="flex flex-wrap gap-3">
+              {/* CREATE ORDER BUTTON */}
+              <button 
+                onClick={handleCreateOrder}
+                className="px-6 py-3 bg-orange-600 text-white rounded-2xl hover:bg-orange-700 shadow-lg shadow-orange-100 flex items-center gap-2 transition-all active:scale-95 font-bold"
+              >
+                <Package size={18} />
+                Create Order
+              </button>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-800">
-              <Tag className="w-5 h-5 text-blue-500" /> Lead Interests
-            </h2>
-            <div className="flex flex-wrap gap-2">
-              {lead.interested_products?.map((prod: string) => (
-                <span key={prod} className="px-4 py-1.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-sm font-medium">
-                  {prod}
-                </span>
-              ))}
-              {(!lead.interested_products?.length) && (
-                <p className="text-gray-400 text-sm italic">No products specified</p>
-              )}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-lg font-semibold mb-2 text-gray-800">Internal Notes</h2>
-            <div className="p-4 bg-amber-50 rounded-xl border border-amber-100 text-amber-900 text-sm whitespace-pre-wrap">
-              {lead.notes || 'No internal notes added for this lead.'}
+              <button 
+                onClick={() => setShowEditModal(true)}
+                className="px-6 py-3 bg-white border border-gray-200 text-gray-700 rounded-2xl hover:bg-gray-50 flex items-center gap-2 transition-all font-bold"
+              >
+                <Edit size={18} />
+                Edit Details
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Right Column: Assignment & Details */}
-        <div className="space-y-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-lg font-semibold mb-4 text-gray-800">Lead Context</h2>
-            <div className="space-y-4">
-              <DetailRow label="Source" value={lead.source} />
-              <DetailRow label="Campaign" value={lead.campaign_name || lead.source_campaign || 'Direct'} />
-              <DetailRow label="Priority" value={lead.priority === 2 ? 'High' : lead.priority === 1 ? 'Medium' : 'Low'} />
-              
-              <div className="pt-4 border-t">
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-2">Assigned To</p>
-                {lead.assigned_team_member ? (
-                  <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl border border-blue-100">
-                    <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-                      {lead.assigned_team_member.name?.[0]}
-                    </div>
-                    <div>
-                      <p className="font-bold text-blue-900 text-sm">{lead.assigned_team_member.name}</p>
-                      <p className="text-blue-700 text-xs">{lead.assigned_team_member.email}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-amber-600 bg-amber-50 p-3 rounded-xl border border-amber-100 text-sm font-medium">
-                    <UserPlus size={16} /> Unassigned
-                  </div>
-                )}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Info */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Contact Details */}
+            <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-8">
+              <h2 className="text-xl font-bold mb-6 flex items-center gap-2 text-gray-800">
+                <User className="w-5 h-5 text-blue-500" /> Basic Information
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Phone Number</p>
+                  <p className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-green-500" /> {lead.phone}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Email Address</p>
+                  <p className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-blue-500" /> {lead.email || 'N/A'}
+                  </p>
+                </div>
+                <div className="md:col-span-2 space-y-1">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Address</p>
+                  <p className="text-gray-700 leading-relaxed">
+                    <MapPin className="inline w-4 h-4 mr-2 text-red-500" /> 
+                    {[lead.address, lead.city, lead.state, lead.pincode].filter(Boolean).join(', ') || 'Address not updated'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-8">
+              <h2 className="text-xl font-bold mb-4 text-gray-800">Internal Remarks</h2>
+              <div className="p-6 bg-blue-50/50 rounded-2xl border border-blue-100 text-gray-700 min-h-[100px] whitespace-pre-wrap leading-relaxed">
+                {lead.notes || 'No notes added for this lead yet.'}
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-800">
-              <Clock className="w-5 h-5 text-blue-500" /> History
-            </h2>
-            <p className="text-sm text-gray-400 italic">Tracking started on {format(new Date(lead.created_at), 'PPP')}</p>
+          {/* Sidebar */}
+          <div className="space-y-8">
+            {/* Assignment & Metadata */}
+            <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-8">
+              <h2 className="text-xl font-bold mb-6 text-gray-800">Lead Context</h2>
+              <div className="space-y-6">
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Source</p>
+                  <p className="font-bold text-gray-900 text-lg capitalize">{lead.source}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Campaign</p>
+                  <p className="font-bold text-gray-900">{lead.campaign_name || lead.source_campaign || 'Organic'}</p>
+                </div>
+                
+                <div className="pt-6 border-t border-gray-100">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Assigned To</p>
+                  {lead.assigned_team_member ? (
+                    <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-black">
+                        {lead.assigned_team_member.name?.[0]}
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-900 text-sm">{lead.assigned_team_member.name}</p>
+                        <p className="text-gray-500 text-xs">{lead.assigned_team_member.email}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-amber-600 bg-amber-50 p-4 rounded-2xl border border-amber-100 text-sm font-bold">
+                      <UserPlus size={18} /> Unassigned
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Summary Card */}
+            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2rem] p-8 text-white shadow-xl shadow-blue-100">
+                <Quote className="w-8 h-8 opacity-20 mb-4" />
+                <p className="text-sm opacity-80 leading-relaxed italic">
+                   "Manage this lead actively to increase conversion rates. High-priority leads should be contacted within 2 hours."
+                </p>
+                <div className="mt-6 flex items-center justify-between">
+                   <div className="text-xs font-bold uppercase tracking-tighter opacity-60">CRM Insights</div>
+                   <ArrowRight size={16} />
+                </div>
+            </div>
           </div>
         </div>
       </div>
@@ -189,16 +231,6 @@ export default function LeadDetailsPage() {
           }} 
         />
       )}
-    </div>
-  );
-}
-
-// --- Helper Component: Detail Row ---
-function DetailRow({ label, value }: { label: string, value: string }) {
-  return (
-    <div>
-      <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">{label}</p>
-      <p className="font-semibold text-gray-900 capitalize">{value || 'N/A'}</p>
     </div>
   );
 }
@@ -222,7 +254,6 @@ function EditLeadModal({ lead, onClose, onSuccess }: any) {
   });
 
   useEffect(() => {
-    // Fetch real team members for assignment
     fetch('/api/admin/team')
       .then(res => res.json())
       .then(data => setAgents(data.teamMembers?.filter((m: any) => m.is_active) || []));
@@ -247,34 +278,34 @@ function EditLeadModal({ lead, onClose, onSuccess }: any) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="p-6 border-b flex justify-between items-center bg-gray-50/50">
-          <h2 className="text-xl font-bold text-gray-900">Update Lead Details</h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors"><X size={20} /></button>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[100] p-4">
+      <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="p-8 border-b flex justify-between items-center">
+          <h2 className="text-2xl font-bold text-gray-900">Edit Lead</h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors"><X size={24} /></button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto custom-scrollbar">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="col-span-2 md:col-span-1">
-              <label className="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">Full Name</label>
-              <input required className="w-full p-3 border rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all" value={formData.full_name} onChange={e => setFormData({...formData, full_name: e.target.value})} />
+              <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Full Name</label>
+              <input required className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-blue-500 outline-none transition-all font-semibold" value={formData.full_name} onChange={e => setFormData({...formData, full_name: e.target.value})} />
             </div>
             <div className="col-span-2 md:col-span-1">
-              <label className="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">Phone</label>
-              <input required className="w-full p-3 border rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+              <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Phone</label>
+              <input required className="w-full p-4 border-2 border-gray-100 rounded-2xl focus:border-blue-500 outline-none transition-all font-semibold" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
             </div>
             
-            <div className="col-span-2 p-4 bg-blue-50 rounded-2xl border border-blue-100">
-              <label className="flex items-center gap-2 text-xs font-bold text-blue-600 uppercase mb-2 ml-1">
+            <div className="col-span-2 p-6 bg-blue-50 rounded-3xl border border-blue-100">
+              <label className="flex items-center gap-2 text-xs font-black text-blue-600 uppercase tracking-widest mb-3 ml-1">
                 <UserPlus size={14} /> Assigned Representative
               </label>
               <select 
-                className="w-full p-3 border border-blue-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-500 font-medium text-blue-900"
+                className="w-full p-4 border-2 border-blue-100 rounded-2xl bg-white outline-none focus:border-blue-500 font-bold text-blue-900"
                 value={formData.assigned_to}
                 onChange={e => setFormData({...formData, assigned_to: e.target.value})}
               >
-                <option value="">Select Agent (Unassigned)</option>
+                <option value="">Unassigned (Open Queue)</option>
                 {agents.map(agent => (
                   <option key={agent.id} value={agent.id}>{agent.name} ({agent.role})</option>
                 ))}
@@ -282,8 +313,8 @@ function EditLeadModal({ lead, onClose, onSuccess }: any) {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">Status</label>
-              <select className="w-full p-3 border rounded-xl bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
+              <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Lead Status</label>
+              <select className="w-full p-4 border-2 border-gray-100 rounded-2xl outline-none focus:border-blue-500 font-bold" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
                 <option value="new">New</option>
                 <option value="contacted">Contacted</option>
                 <option value="qualified">Qualified</option>
@@ -293,8 +324,8 @@ function EditLeadModal({ lead, onClose, onSuccess }: any) {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">Priority</label>
-              <select className="w-full p-3 border rounded-xl bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500" value={formData.priority} onChange={e => setFormData({...formData, priority: parseInt(e.target.value)})}>
+              <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Priority</label>
+              <select className="w-full p-4 border-2 border-gray-100 rounded-2xl outline-none focus:border-blue-500 font-bold" value={formData.priority} onChange={e => setFormData({...formData, priority: parseInt(e.target.value)})}>
                 <option value="0">Low</option>
                 <option value="1">Medium</option>
                 <option value="2">High</option>
@@ -303,15 +334,15 @@ function EditLeadModal({ lead, onClose, onSuccess }: any) {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">Notes</label>
-            <textarea rows={3} className="w-full p-3 border rounded-xl bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500" value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} />
+            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Notes</label>
+            <textarea rows={4} className="w-full p-4 border-2 border-gray-100 rounded-2xl outline-none focus:border-blue-500 font-medium" value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} placeholder="Add follow-up details..." />
           </div>
 
-          <div className="flex gap-3 pt-4 border-t">
-            <button type="button" onClick={onClose} className="flex-1 py-3 border rounded-xl hover:bg-gray-100 font-semibold text-gray-600 transition-colors">Cancel</button>
-            <button type="submit" disabled={loading} className="flex-1 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-semibold flex items-center justify-center gap-2 shadow-lg shadow-blue-200 transition-all active:scale-95">
+          <div className="flex gap-4 pt-4">
+            <button type="button" onClick={onClose} className="flex-1 py-4 border-2 border-gray-100 rounded-2xl font-bold text-gray-500 hover:bg-gray-50 transition-colors">Cancel</button>
+            <button type="submit" disabled={loading} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl hover:bg-blue-700 font-bold flex items-center justify-center gap-2 shadow-xl shadow-blue-100 transition-all active:scale-95">
               {loading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
-              Save Changes
+              Update Lead
             </button>
           </div>
         </form>

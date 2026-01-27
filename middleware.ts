@@ -4,20 +4,10 @@ import { NextResponse, type NextRequest } from 'next/server';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 1. Skip middleware for static assets, images, and internal Next.js files
-  // This prevents the middleware from running thousands of times unnecessarily
-  if (
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/api') ||
-    pathname.startsWith('/static') ||
-    pathname.includes('.') // matches .png, .jpg, .ico, etc.
-  ) {
-    return NextResponse.next();
-  }
+  // 1. Skip static assets & API routes for performance
+  if (pathname.startsWith('/_next') || pathname.includes('.')) return NextResponse.next();
 
-  let response = NextResponse.next({
-    request: { headers: request.headers },
-  });
+  let response = NextResponse.next({ request: { headers: request.headers } });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,24 +23,26 @@ export async function middleware(request: NextRequest) {
         remove(name: string, options: CookieOptions) {
           request.cookies.set({ name, value: '', ...options });
           response = NextResponse.next({ request: { headers: request.headers } });
-          response.cookies.set({ name, value: '', ...options });
+          response.cookies.set({ name, value, ...options });
         },
       },
     }
   );
 
-  // 2. Use getSession() instead of getUser() for speed in Middleware
+  // Use faster getSession for middleware
   const { data: { session } } = await supabase.auth.getSession();
 
-  // 3. Logic for /admin routes
-  if (pathname.startsWith('/admin')) {
-    if (!session) {
-      // Use absolute URL to prevent loop issues
-      return NextResponse.redirect(new URL('/login', request.url));
-    }
+  // 2. Kill any old /admin/login redirects
+  if (pathname.startsWith('/admin/login')) {
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // 4. Logic for /login route (redirect if already logged in)
+  // 3. Protect /admin routes
+  if (pathname.startsWith('/admin') && !session) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  // 4. Prevent logged-in users from seeing /login
   if (pathname === '/login' && session) {
     return NextResponse.redirect(new URL('/admin/dashboard', request.url));
   }
@@ -58,7 +50,4 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
-// 5. Very specific matcher to reduce invocation count
-export const config = {
-  matcher: ['/admin/:path*', '/login', '/account/:path*'],
-};
+export const config = { matcher: ['/admin/:path*', '/login'] };

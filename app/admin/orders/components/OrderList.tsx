@@ -1,7 +1,7 @@
 'use client';
 
-import { Order, OrderStatus } from '@/types/order';
-import { getStatusDisplayInfo, STATUS_CONFIG } from '@/types/status';
+import { Order } from '@/types/order';
+import { getStatusDisplayInfo } from '@/types/status';
 import { formatDistanceToNow, format } from 'date-fns';
 import Link from 'next/link';
 import { 
@@ -10,7 +10,8 @@ import {
   MapPin, 
   Package, 
   AlertTriangle,
-  RotateCcw 
+  RotateCcw,
+  User 
 } from 'lucide-react';
 
 interface OrderListProps {
@@ -35,18 +36,15 @@ export function OrderList({
 }: OrderListProps) {
   if (isLoading) {
     return (
-      <div className="bg-white rounded-lg shadow">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         {[...Array(5)].map((_, i) => (
-          <div
-            key={i}
-            className="p-4 border-b animate-pulse flex items-center space-x-4"
-          >
-            <div className="h-12 w-12 bg-gray-200 rounded-full" />
-            <div className="flex-1 space-y-2">
-              <div className="h-4 bg-gray-200 rounded w-1/4" />
-              <div className="h-3 bg-gray-200 rounded w-1/2" />
+          <div key={i} className="p-6 border-b border-gray-50 animate-pulse flex items-center space-x-4">
+            <div className="h-12 w-12 bg-gray-100 rounded-full" />
+            <div className="flex-1 space-y-3">
+              <div className="h-4 bg-gray-100 rounded w-1/4" />
+              <div className="h-3 bg-gray-100 rounded w-1/2" />
             </div>
-            <div className="h-8 w-24 bg-gray-200 rounded" />
+            <div className="h-8 w-24 bg-gray-100 rounded-lg" />
           </div>
         ))}
       </div>
@@ -55,29 +53,32 @@ export function OrderList({
 
   if (orders.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow p-8 text-center">
-        <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900">No orders found</h3>
-        <p className="mt-2 text-gray-500">
-          Try adjusting your search or filter criteria
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-20 text-center">
+        <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
+           <Package className="h-10 w-10 text-gray-300" />
+        </div>
+        <h3 className="text-xl font-bold text-gray-900">No matching orders</h3>
+        <p className="mt-2 text-gray-500 max-w-xs mx-auto">
+          We couldn't find any orders matching your current filters or assignment.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
-      {/* Table Header */}
-      <div className="bg-gray-50 px-6 py-3 border-b hidden md:grid md:grid-cols-6 gap-4 text-sm font-medium text-gray-500">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      {/* Table Header - Adjusted to 7 columns to accommodate "Handled By" */}
+      <div className="bg-gray-50/50 px-6 py-4 border-b border-gray-100 hidden md:grid md:grid-cols-7 gap-4 text-xs font-bold text-gray-400 uppercase tracking-widest">
         <div className="col-span-2">Order Details</div>
         <div>Status</div>
-        <div>Delivery Attempts</div>
+        <div>Attempts</div>
+        <div>Handled By</div>
         <div>Last Updated</div>
-        <div>Actions</div>
+        <div className="text-right">Actions</div>
       </div>
 
       {/* Order Items */}
-      <div className="divide-y">
+      <div className="divide-y divide-gray-50">
         {orders.map((order) => (
           <OrderRow
             key={order.id}
@@ -89,41 +90,24 @@ export function OrderList({
 
       {/* Pagination */}
       {pagination && pagination.totalPages > 1 && (
-        <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between">
-          <p className="text-sm text-gray-600">
-            Showing {(pagination.page - 1) * pagination.limit + 1} to{' '}
-            {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
-            {pagination.total} orders
+        <div className="px-6 py-5 border-t border-gray-50 bg-gray-50/30 flex items-center justify-between">
+          <p className="text-sm text-gray-500 font-medium">
+            Showing <span className="text-gray-900">{(pagination.page - 1) * pagination.limit + 1}</span> to{' '}
+            <span className="text-gray-900">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of{' '}
+            <span className="text-gray-900">{pagination.total}</span> orders
           </p>
-          <div className="flex space-x-2">
+          <div className="flex gap-2">
             <button
               onClick={() => onPageChange(pagination.page - 1)}
               disabled={pagination.page === 1}
-              className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+              className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white transition-all shadow-sm"
             >
               Previous
             </button>
-            {/* Page numbers */}
-            {[...Array(Math.min(5, pagination.totalPages))].map((_, i) => {
-              const pageNum = i + 1;
-              return (
-                <button
-                  key={pageNum}
-                  onClick={() => onPageChange(pageNum)}
-                  className={`px-3 py-1 border rounded text-sm ${
-                    pagination.page === pageNum
-                      ? 'bg-blue-600 text-white'
-                      : 'hover:bg-gray-100'
-                  }`}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
             <button
               onClick={() => onPageChange(pagination.page + 1)}
               disabled={pagination.page === pagination.totalPages}
-              className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+              className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed hover:border-gray-300 transition-all shadow-sm"
             >
               Next
             </button>
@@ -138,42 +122,41 @@ function OrderRow({
   order,
   onStatusUpdate,
 }: {
-  order: Order;
+  order: any; // Using any for flexibility with joined data
   onStatusUpdate: (order: Order) => void;
 }) {
-  const statusInfo = getStatusDisplayInfo(order.current_status);
-  const isDeliveryAttempt = order.current_status.startsWith('delivery_attempt');
-  const attemptNumber = isDeliveryAttempt
-    ? parseInt(order.current_status.split('_')[2])
-    : 0;
-
+  // Safety Fix: Handle potential undefined status
+  const currentStatus = order.current_status || 'pending';
+  const statusInfo = getStatusDisplayInfo(currentStatus);
+  
   return (
-    <div className="px-6 py-4 hover:bg-gray-50 transition-colors">
-      <div className="md:grid md:grid-cols-6 gap-4 items-center">
+    <div className="px-6 py-5 hover:bg-blue-50/30 transition-all group">
+      <div className="md:grid md:grid-cols-7 gap-4 items-center">
         {/* Order Details */}
         <div className="col-span-2 mb-4 md:mb-0">
           <div className="flex items-start">
             <div className="flex-shrink-0">
-              <div className={`w-10 h-10 rounded-full ${statusInfo.bgColor} flex items-center justify-center`}>
-                <Package className={`h-5 w-5 ${statusInfo.color}`} />
+              <div className={`w-12 h-12 rounded-2xl ${statusInfo.bgColor} flex items-center justify-center shadow-sm`}>
+                <Package className={`h-6 w-6 ${statusInfo.color}`} />
               </div>
             </div>
             <div className="ml-4">
               <Link
                 href={`/admin/orders/${order.id}`}
-                className="text-sm font-medium text-gray-900 hover:text-blue-600"
+                className="text-sm font-bold text-gray-900 hover:text-blue-600 transition-colors flex items-center gap-2"
               >
                 #{order.order_number}
+                <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
               </Link>
-              <p className="text-sm text-gray-600 mt-1">{order.customer_name}</p>
-              <div className="flex items-center text-xs text-gray-500 mt-1 space-x-3">
+              <p className="text-xs font-medium text-gray-500 mt-1">{order.customer_name}</p>
+              <div className="flex items-center text-[10px] font-bold text-gray-400 mt-1.5 space-x-3 uppercase tracking-tighter">
                 <span className="flex items-center">
-                  <Phone className="h-3 w-3 mr-1" />
+                  <Phone className="h-3 w-3 mr-1 text-green-500" />
                   {order.customer_phone}
                 </span>
                 <span className="flex items-center">
-                  <MapPin className="h-3 w-3 mr-1" />
-                  {order.shipping_address?.city}
+                  <MapPin className="h-3 w-3 mr-1 text-red-500" />
+                  {order.shipping_address?.city || 'No City'}
                 </span>
               </div>
             </div>
@@ -183,9 +166,9 @@ function OrderRow({
         {/* Status */}
         <div className="mb-2 md:mb-0">
           <span
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusInfo.bgColor} ${statusInfo.color}`}
+            className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${statusInfo.bgColor} ${statusInfo.color} border border-current opacity-80`}
           >
-            {order.is_rto && <RotateCcw className="h-3 w-3 mr-1" />}
+            {order.is_rto && <RotateCcw className="h-2.5 w-2.5 mr-1" />}
             {statusInfo.label}
           </span>
         </div>
@@ -196,61 +179,61 @@ function OrderRow({
             {[1, 2, 3, 4, 5].map((num) => (
               <div
                 key={num}
-                className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium ${
+                className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold ${
                   order.delivery_attempts_count >= num
-                    ? num <= 2
-                      ? 'bg-yellow-100 text-yellow-700'
-                      : num <= 4
-                      ? 'bg-orange-100 text-orange-700'
-                      : 'bg-red-100 text-red-700'
-                    : 'bg-gray-100 text-gray-400'
+                    ? 'bg-orange-100 text-orange-600 border border-orange-200'
+                    : 'bg-gray-50 text-gray-300 border border-gray-100'
                 }`}
               >
                 {num}
               </div>
             ))}
           </div>
-          {order.delivery_attempts_count > 0 && (
-            <p className="text-xs text-gray-500 mt-1">
-              {order.delivery_attempts_count} attempt{order.delivery_attempts_count > 1 ? 's' : ''} made
-            </p>
-          )}
+        </div>
+
+        {/* 👇 NEW: Handled By Agent Column */}
+        <div className="mb-2 md:mb-0">
+           <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center">
+                 <User className="w-3.5 h-3.5 text-blue-500" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-gray-900 truncate">
+                  {order.assigned_team_member?.name || 'Self / Website'}
+                </p>
+                <p className="text-[10px] text-gray-400 font-medium">Representative</p>
+              </div>
+           </div>
         </div>
 
         {/* Last Updated */}
         <div className="mb-4 md:mb-0">
-          <p className="text-sm text-gray-600">
-            {formatDistanceToNow(new Date(order.status_updated_at), { addSuffix: true })}
+          <p className="text-xs font-bold text-gray-700">
+            {formatDistanceToNow(new Date(order.status_updated_at || order.updated_at), { addSuffix: true })}
           </p>
-          <p className="text-xs text-gray-400">
+          <p className="text-[10px] font-medium text-gray-400 mt-0.5">
             {format(new Date(order.created_at), 'MMM d, yyyy')}
           </p>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center justify-end space-x-2">
           <button
             onClick={() => onStatusUpdate(order)}
-            className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="px-4 py-1.5 bg-white border border-gray-200 rounded-lg text-[11px] font-black text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-all shadow-sm active:scale-95"
           >
-            Update Status
+            UPDATE
           </button>
-          <Link
-            href={`/admin/orders/${order.id}`}
-            className="inline-flex items-center p-1.5 text-gray-400 hover:text-gray-600"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </Link>
         </div>
       </div>
 
       {/* Warning for high delivery attempts */}
       {order.delivery_attempts_count >= 3 && !order.is_rto && (
-        <div className="mt-3 flex items-center text-sm text-orange-600 bg-orange-50 rounded-md px-3 py-2">
-          <AlertTriangle className="h-4 w-4 mr-2" />
+        <div className="mt-4 flex items-center text-[11px] font-bold text-orange-700 bg-orange-50/50 border border-orange-100 rounded-xl px-4 py-2.5">
+          <AlertTriangle className="h-3.5 w-3.5 mr-2" />
           {order.delivery_attempts_count === 5
-            ? 'Maximum delivery attempts reached. Consider initiating RTO.'
-            : `${5 - order.delivery_attempts_count} delivery attempts remaining`}
+            ? 'CRITICAL: Maximum delivery attempts reached. RTO recommended.'
+            : `ACTION REQUIRED: ${5 - order.delivery_attempts_count} attempts remaining.`}
         </div>
       )}
     </div>
