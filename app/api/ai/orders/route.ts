@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { supabaseAdmin } from "@/lib/supabase-server"
+import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 export async function GET(req: Request) {
   // 🔐 AI AUTH
@@ -22,7 +22,7 @@ export async function GET(req: Request) {
   }
 
   // 🔍 SUPABASE QUERY
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await createServerSupabaseClient
     .from("orders")
     .select(`
       id,
