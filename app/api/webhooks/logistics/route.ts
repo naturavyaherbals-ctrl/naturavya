@@ -3,30 +3,25 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function POST(req: NextRequest) {
   try {
-    // 1. Verify Shiprocket Header (Security)
-    // Shiprocket sends 'x-shiprocket-token' header. 
-    // You should verify this matches what you set in their dashboard.
-    const secret = req.headers.get('x-shiprocket-token');
-    if (process.env.SHIPROCKET_WEBHOOK_SECRET && secret !== process.env.SHIPROCKET_WEBHOOK_SECRET) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    const body = await req.json().catch(() => null);
+
+    // 1. SHIPROCKET VERIFICATION PING (Empty or test body)
+    // Always return 200 to let Shiprocket save the webhook
+    if (!body || (!body.awb && !body.awb_number)) {
+      console.log('Shiprocket verification ping received.');
+      return NextResponse.json({ success: true, message: 'Webhook verified' });
     }
 
-    const body = await req.json();
     const adminClient = createAdminClient();
-
-    // Shiprocket payload usually looks like:
-    // { awb: "...", current_status: "DELIVERED", ... }
-    const awb = body.awb;
-    const newStatus = body.current_status;
+    const awb = body.awb || body.awb_number;
+    const newStatus = body.current_status || body.status;
     const trackingLink = body.tracking_url;
 
     if (!awb || !newStatus) {
-      return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
+      return NextResponse.json({ success: true, message: 'Ignored invalid payload' });
     }
 
-    console.log(`[Webhook] Update for AWB ${awb}: ${newStatus}`);
-
-    // Find order
+    // 2. Find order
     const { data: order } = await adminClient
       .from('orders')
       .select('id, current_status')
@@ -34,19 +29,20 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (!order) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+      console.log('Order not found for AWB:', awb);
+      return NextResponse.json({ success: true, message: 'Order not found' });
     }
 
-    // Map Shiprocket status to internal
+    // 3. Map status
     let internalStatus = order.current_status;
-    const s = newStatus.toUpperCase();
+    const s = String(newStatus).toUpperCase();
 
-    if (s === 'DELIVERED') internalStatus = 'delivered';
-    else if (s === 'RTO INITIATED' || s === 'RTO DELIVERED') internalStatus = 'rto';
-    else if (s === 'SHIPPED' || s === 'IN TRANSIT' || s === 'OUT FOR DELIVERY') internalStatus = 'shipped';
-    else if (s === 'CANCELED') internalStatus = 'cancelled';
+    if (s.includes('DELIVERED')) internalStatus = 'delivered';
+    else if (s.includes('RTO')) internalStatus = 'rto';
+    else if (s.includes('SHIPPED') || s.includes('TRANSIT') || s.includes('PICKED')) internalStatus = 'shipped';
+    else if (s.includes('CANCEL')) internalStatus = 'cancelled';
 
-    // Update if changed
+    // 4. Update
     if (internalStatus !== order.current_status) {
       const updates: any = {
         current_status: internalStatus,
@@ -76,7 +72,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error('Shiprocket webhook error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Webhook Error:', error);
+    // Return 200 even on error to prevent Shiprocket disable
+    return NextResponse.json({ success: true, error: error.message });
   }
 }

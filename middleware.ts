@@ -4,8 +4,12 @@ import { NextResponse, type NextRequest } from 'next/server';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip static files and images
-  if (pathname.startsWith('/_next') || pathname.includes('.')) {
+  // 1. BYPASS ALL API ROUTES & STATIC FILES
+  if (
+    pathname.startsWith('/api') ||  // <--- This ensures webhooks are never touched
+    pathname.startsWith('/_next') || 
+    pathname.includes('.')
+  ) {
     return NextResponse.next();
   }
 
@@ -29,7 +33,6 @@ export async function middleware(request: NextRequest) {
           response.cookies.set({ name, value, ...options });
         },
         remove(name: string, options: CookieOptions) {
-          // Set to empty string to remove
           request.cookies.set({ name, value: '', ...options });
           response = NextResponse.next({
             request: { headers: request.headers },
@@ -40,7 +43,6 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Use getSession for faster middleware checks
   const { data: { session } } = await supabase.auth.getSession();
 
   // Redirect Logic
@@ -59,6 +61,7 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
+// 2. UPDATE MATCHER TO INCLUDE EVERYTHING (So we control it in code)
 export const config = {
-  matcher: ['/admin/:path*', '/login'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };
