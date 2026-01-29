@@ -13,9 +13,13 @@ import {
   RefreshCw,
   Calendar,
   Settings,
-  Loader2
+  Loader2,
 } from 'lucide-react';
-import { formatCurrency, formatNumber, formatPercentage } from '@/lib/utils/formatters';
+import {
+  formatCurrency,
+  formatNumber,
+  formatPercentage,
+} from '@/lib/utils/formatters';
 
 interface AdAnalyticsData {
   accounts: any[];
@@ -53,19 +57,52 @@ interface AdAnalyticsData {
   };
 }
 
+type UTMRow = {
+  campaign_label: string | null;
+  source: string | null;
+  leads_count: number;
+  converted_leads_count: number;
+  orders_count: number;
+  revenue_total: number;
+  rto_orders_count: number;
+  rto_revenue_lost: number;
+  lead_to_order_conv_pct: number;
+};
+
+type UTMTotals = {
+  leads: number;
+  converted_leads: number;
+  orders: number;
+  revenue_total: number;
+  rto_orders: number;
+  rto_revenue_lost: number;
+  overall_conv_pct: number;
+};
+
 export default function AdAnalyticsPage() {
   const [data, setData] = useState<AdAnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [platform, setPlatform] = useState<'all' | 'meta' | 'google'>('all');
   const [dateRange, setDateRange] = useState({
-    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split('T')[0],
     endDate: new Date().toISOString().split('T')[0],
   });
   const [showAccountModal, setShowAccountModal] = useState(false);
 
+  // UTM / campaign breakdown (from leads + orders)
+  const [utmRows, setUtmRows] = useState<UTMRow[]>([]);
+  const [utmTotals, setUtmTotals] = useState<UTMTotals | null>(null);
+  const [utmLoading, setUtmLoading] = useState<boolean>(true);
+
   useEffect(() => {
     fetchAnalytics();
   }, [platform, dateRange]);
+
+  useEffect(() => {
+    fetchUtmBreakdown();
+  }, [dateRange, platform]);
 
   const fetchAnalytics = async () => {
     setIsLoading(true);
@@ -75,7 +112,9 @@ export default function AdAnalyticsPage() {
       params.set('startDate', dateRange.startDate);
       params.set('endDate', dateRange.endDate);
 
-      const response = await fetch(`/api/admin/analytics/ads?${params.toString()}`);
+      const response = await fetch(
+        `/api/admin/analytics/ads?${params.toString()}`
+      );
       const result = await response.json();
 
       if (result.success) {
@@ -88,6 +127,35 @@ export default function AdAnalyticsPage() {
     }
   };
 
+  const fetchUtmBreakdown = async () => {
+    try {
+      setUtmLoading(true);
+      const params = new URLSearchParams();
+      params.set('start_date', dateRange.startDate);
+      params.set('end_date', dateRange.endDate);
+
+      // Optional: filter by platform -> map to leads.source if needed
+      // if (platform === 'meta') params.set('source', 'meta_ads');
+      // if (platform === 'google') params.set('source', 'google_ads');
+
+      const res = await fetch(`/api/admin/ads/summary?${params.toString()}`);
+      const json = await res.json();
+      if (json.success) {
+        setUtmRows(json.data || []);
+        setUtmTotals(json.totals || null);
+      } else {
+        setUtmRows([]);
+        setUtmTotals(null);
+      }
+    } catch (e) {
+      console.error('UTM breakdown fetch error:', e);
+      setUtmRows([]);
+      setUtmTotals(null);
+    } finally {
+      setUtmLoading(false);
+    }
+  };
+
   const handleSync = async () => {
     try {
       await fetch('/api/admin/analytics/ads', {
@@ -96,22 +164,23 @@ export default function AdAnalyticsPage() {
         body: JSON.stringify({ platform }),
       });
       fetchAnalytics();
+      fetchUtmBreakdown();
     } catch (err) {
       console.error('Sync error:', err);
     }
   };
 
-  const StatCard = ({ 
-    title, 
-    value, 
-    icon: Icon, 
+  const StatCard = ({
+    title,
+    value,
+    icon: Icon,
     color,
     subtitle,
     trend,
-  }: { 
-    title: string; 
-    value: string | number; 
-    icon: any; 
+  }: {
+    title: string;
+    value: string | number;
+    icon: any;
     color: string;
     subtitle?: string;
     trend?: number;
@@ -121,11 +190,23 @@ export default function AdAnalyticsPage() {
         <div>
           <p className="text-sm text-gray-600">{title}</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
-          {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
+          {subtitle && (
+            <p className="text-sm text-gray-500 mt-1">{subtitle}</p>
+          )}
           {trend !== undefined && (
-            <div className={`flex items-center mt-2 ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {trend >= 0 ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
-              <span className="text-sm font-medium">{Math.abs(trend).toFixed(1)}%</span>
+            <div
+              className={`flex items-center mt-2 ${
+                trend >= 0 ? 'text-green-600' : 'text-red-600'
+              }`}
+            >
+              {trend >= 0 ? (
+                <TrendingUp className="w-4 h-4 mr-1" />
+              ) : (
+                <TrendingDown className="w-4 h-4 mr-1" />
+              )}
+              <span className="text-sm font-medium">
+                {Math.abs(trend).toFixed(1)}%
+              </span>
             </div>
           )}
         </div>
@@ -144,7 +225,6 @@ export default function AdAnalyticsPage() {
     );
   }
 
-  // Safe access to arrays
   const campaigns = data?.campaigns || [];
   const chartData = data?.chartData || [];
 
@@ -154,7 +234,9 @@ export default function AdAnalyticsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Ad Analytics</h1>
-          <p className="text-gray-600 mt-1">Track your Meta and Google Ads performance</p>
+          <p className="text-gray-600 mt-1">
+            Track your Meta and Google Ads performance
+          </p>
         </div>
         <div className="flex gap-3">
           <button
@@ -188,7 +270,11 @@ export default function AdAnalyticsPage() {
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                {p === 'all' ? 'All Platforms' : p === 'meta' ? 'Meta Ads' : 'Google Ads'}
+                {p === 'all'
+                  ? 'All Platforms'
+                  : p === 'meta'
+                  ? 'Meta Ads'
+                  : 'Google Ads'}
               </button>
             ))}
           </div>
@@ -198,14 +284,18 @@ export default function AdAnalyticsPage() {
             <input
               type="date"
               value={dateRange.startDate}
-              onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
+              onChange={(e) =>
+                setDateRange({ ...dateRange, startDate: e.target.value })
+              }
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
             />
             <span className="text-gray-500">to</span>
             <input
               type="date"
               value={dateRange.endDate}
-              onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
+              onChange={(e) =>
+                setDateRange({ ...dateRange, endDate: e.target.value })
+              }
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
             />
           </div>
@@ -234,7 +324,9 @@ export default function AdAnalyticsPage() {
               value={formatNumber(data.totals.clicks)}
               icon={MousePointer}
               color="bg-purple-500"
-              subtitle={`${formatPercentage(data.totals.ctr)} CTR • ${formatCurrency(data.totals.cpc)} CPC`}
+              subtitle={`${formatPercentage(
+                data.totals.ctr
+              )} CTR • ${formatCurrency(data.totals.cpc)} CPC`}
             />
             <StatCard
               title="Leads Generated"
@@ -251,7 +343,9 @@ export default function AdAnalyticsPage() {
               value={data.totals.purchases}
               icon={ShoppingCart}
               color="bg-emerald-500"
-              subtitle={`${formatCurrency(data.totals.costPerPurchase)} per purchase`}
+              subtitle={`${formatCurrency(
+                data.totals.costPerPurchase
+              )} per purchase`}
             />
             <StatCard
               title="Revenue"
@@ -263,8 +357,12 @@ export default function AdAnalyticsPage() {
               title="ROAS"
               value={`${data.totals.roas.toFixed(2)}x`}
               icon={Target}
-              color={data.totals.roas >= 1 ? 'bg-green-500' : 'bg-red-500'}
-              subtitle={data.totals.roas >= 1 ? 'Profitable' : 'Below break-even'}
+              color={
+                data.totals.roas >= 1 ? 'bg-green-500' : 'bg-red-500'
+              }
+              subtitle={
+                data.totals.roas >= 1 ? 'Profitable' : 'Below break-even'
+              }
             />
             <StatCard
               title="Reach"
@@ -274,10 +372,12 @@ export default function AdAnalyticsPage() {
             />
           </div>
 
-          {/* Lead Attribution */}
+          {/* Lead Attribution + Top Campaigns */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Lead Attribution</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                Lead Attribution
+              </h2>
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
                   <div className="flex items-center gap-3">
@@ -286,11 +386,15 @@ export default function AdAnalyticsPage() {
                     </div>
                     <div>
                       <p className="font-medium text-gray-900">Meta Ads</p>
-                      <p className="text-sm text-gray-500">Facebook & Instagram</p>
+                      <p className="text-sm text-gray-500">
+                        Facebook & Instagram
+                      </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-bold text-gray-900">{data.leadAttribution.meta_ads.total}</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {data.leadAttribution.meta_ads.total}
+                    </p>
                     <p className="text-sm text-green-600">
                       {data.leadAttribution.meta_ads.converted} converted
                     </p>
@@ -304,11 +408,15 @@ export default function AdAnalyticsPage() {
                     </div>
                     <div>
                       <p className="font-medium text-gray-900">Google Ads</p>
-                      <p className="text-sm text-gray-500">Search & Display</p>
+                      <p className="text-sm text-gray-500">
+                        Search & Display
+                      </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-bold text-gray-900">{data.leadAttribution.google_ads.total}</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {data.leadAttribution.google_ads.total}
+                    </p>
                     <p className="text-sm text-green-600">
                       {data.leadAttribution.google_ads.converted} converted
                     </p>
@@ -317,64 +425,195 @@ export default function AdAnalyticsPage() {
               </div>
             </div>
 
-            {/* Campaigns */}
+            {/* Top Campaigns from ad platforms */}
             <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Top Campaigns</h2>
-              {/* FIX: Use the safe campaigns array */}
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                Top Campaigns (Platform Data)
+              </h2>
               {campaigns.length > 0 ? (
                 <div className="space-y-3">
                   {campaigns.slice(0, 5).map((campaign) => (
-                    <div key={campaign.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div
+                      key={campaign.id}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    >
                       <div>
-                        <p className="font-medium text-gray-900 truncate max-w-[200px]">{campaign.name}</p>
-                        <p className="text-sm text-gray-500 capitalize">{campaign.platform}</p>
+                        <p className="font-medium text-gray-900 truncate max-w-[200px]">
+                          {campaign.name}
+                        </p>
+                        <p className="text-sm text-gray-500 capitalize">
+                          {campaign.platform}
+                        </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium text-gray-900">{formatCurrency(campaign.spend)}</p>
-                        <p className="text-sm text-gray-500">{campaign.conversions} conv.</p>
+                        <p className="font-medium text-gray-900">
+                          {formatCurrency(campaign.spend)}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {campaign.conversions} conv.
+                        </p>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-center text-gray-500 py-8">No campaigns found</p>
+                <p className="text-center text-gray-500 py-8">
+                  No campaigns found
+                </p>
               )}
             </div>
           </div>
 
+          {/* UTM / Lead + Order Performance by Campaign */}
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">
+                UTM / Campaign Performance (Leads + Orders)
+              </h2>
+              {utmTotals && (
+                <p className="text-xs text-gray-600">
+                  Leads {utmTotals.leads} • Orders {utmTotals.orders} • Conv{' '}
+                  {utmTotals.overall_conv_pct.toFixed(1)}% • Rev{' '}
+                  {formatCurrency(utmTotals.revenue_total)} • RTO{' '}
+                  {utmTotals.rto_orders} /{' '}
+                  {formatCurrency(utmTotals.rto_revenue_lost)}
+                </p>
+              )}
+            </div>
+
+            {utmLoading ? (
+              <div className="flex items-center justify-center py-8 text-gray-500 text-sm">
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Loading UTM performance…
+              </div>
+            ) : utmRows.length === 0 ? (
+              <p className="text-center text-gray-500 py-8 text-sm">
+                No UTM / campaign data for this date range.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Campaign
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Source
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                        Leads
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                        Orders
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                        Conv %
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                        Revenue
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                        RTO (ord/₹)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {utmRows.map((row, idx) => (
+                      <tr
+                        key={`${row.campaign_label || 'unknown'}-${idx}`}
+                        className="hover:bg-gray-50"
+                      >
+                        <td className="px-4 py-2 text-gray-900">
+                          {row.campaign_label || 'Unknown'}
+                        </td>
+                        <td className="px-4 py-2 text-gray-500">
+                          {row.source || '-'}
+                        </td>
+                        <td className="px-4 py-2 text-right text-gray-900">
+                          {row.leads_count}
+                        </td>
+                        <td className="px-4 py-2 text-right text-gray-900">
+                          {row.orders_count}
+                        </td>
+                        <td className="px-4 py-2 text-right text-gray-900">
+                          {row.lead_to_order_conv_pct?.toFixed(1) || '0.0'}%
+                        </td>
+                        <td className="px-4 py-2 text-right text-gray-900">
+                          {formatCurrency(row.revenue_total || 0)}
+                        </td>
+                        <td className="px-4 py-2 text-right text-gray-900">
+                          {row.rto_orders_count} /{' '}
+                          {formatCurrency(row.rto_revenue_lost || 0)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
           {/* Daily Performance */}
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Daily Performance</h2>
-            {/* FIX: Use the safe chartData array */}
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              Daily Performance
+            </h2>
             {chartData.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Impressions</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Clicks</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Spend</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Leads</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Purchases</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Date
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                        Impressions
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                        Clicks
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                        Spend
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                        Leads
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                        Purchases
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
                     {chartData.map((day) => (
                       <tr key={day.date} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm text-gray-900">{day.date}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900 text-right">{formatNumber(day.impressions)}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900 text-right">{formatNumber(day.clicks)}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900 text-right">{formatCurrency(day.spend)}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900 text-right">{day.leads}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900 text-right">{day.purchases}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900">
+                          {day.date}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                          {formatNumber(day.impressions)}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                          {formatNumber(day.clicks)}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                          {formatCurrency(day.spend)}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                          {day.leads}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                          {day.purchases}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             ) : (
-              <p className="text-center text-gray-500 py-8">No data for selected period</p>
+              <p className="text-center text-gray-500 py-8">
+                No data for selected period
+              </p>
             )}
           </div>
         </>
@@ -382,7 +621,9 @@ export default function AdAnalyticsPage() {
         <div className="bg-white rounded-xl shadow-sm p-12 text-center">
           <Target className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-500">No analytics data available</p>
-          <p className="text-sm text-gray-400 mt-1">Connect your ad accounts to start tracking</p>
+          <p className="text-sm text-gray-400 mt-1">
+            Connect your ad accounts to start tracking
+          </p>
           <button
             onClick={() => setShowAccountModal(true)}
             className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
@@ -397,13 +638,16 @@ export default function AdAnalyticsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="relative bg-white rounded-xl shadow-xl max-w-lg w-full">
             <div className="p-6 border-b">
-              <h2 className="text-lg font-semibold text-gray-900">Ad Account Settings</h2>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Ad Account Settings
+              </h2>
             </div>
             <div className="p-6">
               <p className="text-gray-600 mb-4">
-                To connect your ad accounts, you'll need to configure API access in your Meta Business Suite or Google Ads account.
+                To connect your ad accounts, you'll need to configure API
+                access in your Meta Business Suite or Google Ads account.
               </p>
-              
+
               <div className="space-y-4">
                 <div className="p-4 border rounded-lg hover:border-blue-500 transition-colors">
                   <h3 className="font-medium text-gray-900 mb-2">Meta Ads</h3>
@@ -416,7 +660,9 @@ export default function AdAnalyticsPage() {
                 </div>
 
                 <div className="p-4 border rounded-lg hover:border-red-500 transition-colors">
-                  <h3 className="font-medium text-gray-900 mb-2">Google Ads</h3>
+                  <h3 className="font-medium text-gray-900 mb-2">
+                    Google Ads
+                  </h3>
                   <p className="text-sm text-gray-500 mb-3">
                     Connect your Google Ads accounts
                   </p>
@@ -427,7 +673,8 @@ export default function AdAnalyticsPage() {
               </div>
 
               <p className="text-xs text-gray-400 mt-4">
-                Note: Full integration requires API credentials. Contact support for setup assistance.
+                Note: Full integration requires API credentials. Contact
+                support for setup assistance.
               </p>
             </div>
             <div className="p-6 border-t flex justify-end">

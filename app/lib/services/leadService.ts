@@ -149,38 +149,149 @@ export class LeadService {
   ): Promise<Lead | null> {
     const adminClient = createAdminClient();
 
+    // 1. Fetch existing lead (for previous status, temp, score)
+    const { data: existingLead, error: existingError } = await adminClient
+      .from('leads')
+      .select('id, status, temperature, score')
+      .eq('id', leadId)
+      .single();
+
+    if (existingError || !existingLead) {
+      console.error('updateLeadStatus: lead not found', existingError);
+      return null;
+    }
+
     const updateData: Record<string, any> = { status };
 
-    // Set next follow-up for follow_up status
+    // 2. Set next follow-up for follow_up status (e.g. +24h)
     if (status === 'follow_up') {
       const nextFollowUp = new Date();
       nextFollowUp.setHours(nextFollowUp.getHours() + 24);
       updateData.next_follow_up = nextFollowUp.toISOString();
     }
 
-    // Set conversion date for order_confirmed
+    // 3. Set conversion date for order_confirmed
     if (status === 'order_confirmed') {
       updateData.converted_at = new Date().toISOString();
     }
 
-    const { data, error } = await adminClient
+    // 4. Apply DB update (your DB trigger will recalc score + temperature)
+    const { data: updatedLead, error: updateError } = await adminClient
       .from('leads')
       .update(updateData)
       .eq('id', leadId)
       .select('*')
       .single();
 
-    if (error) return null;
+    if (updateError || !updatedLead) {
+      console.error('updateLeadStatus: update error', updateError);
+      return null;
+    }
 
-    // Log activity
-    await this.addActivity(leadId, {
-      activityType: 'status_change',
-      title: `Status changed to ${status}`,
-      description: notes,
-      createdBy: userId,
-    });
+    // 5. Log activity (optional but recommended)
+    if (notes || userId) {
+      try {
+        await adminClient.from('lead_activities').insert({
+          lead_id: leadId,
+          activity_type: 'status_change', // cast to ActivityType if needed
+          title: `Status updated to ${status}`,
+          description: notes || null,
+          created_by: userId || null,
+        });
+      } catch (err) {
+        console.error('updateLeadStatus: activity log error', err);
+      }
+    }
 
-    return data as Lead;
+    // 6. Trigger AI scorer edge function to refresh ai_insights & suggestions
+    try {
+      if (
+        process.env.NEXT_PUBLIC_SUPABASE_URL &&
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      ) {
+        fetch(
+          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/ai-lead-scorer`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ lead_id: updatedLead.id }),
+          }
+        ).catch((err) =>
+          console.error('updateLeadStatus: ai-lead-scorer error', err)
+        );
+      } else {
+        console.warn(
+          'updateLeadStatus: AI scorer not called – missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY'
+        );
+      }
+    } catch (err) {
+      console.error('updateLeadStatus: AI trigger crash', err);
+    }
+
+    // 7. Schedule follow-up sequences when status changes
+    try {
+      const prevStatus = existingLead.status;
+      const newStatus = status;
+
+      if (newStatus !== prevStatus) {
+        // Map status -> trigger_event used in follow_up_sequences
+        const triggerEventMap: Record<string, string> = {
+          not_picked: 'no_response',
+          follow_up: 'no_response',
+          callback: 'callback_due',
+          // You can add more mappings as needed
+        };
+
+        const triggerEvent = triggerEventMap[newStatus];
+
+        if (triggerEvent) {
+          // Use updated temperature if available, else derive from score
+          const temperature =
+            updatedLead.temperature ||
+            (updatedLead.score >= 75
+              ? 'hot'
+              : updatedLead.score >= 45
+              ? 'warm'
+              : 'cold');
+
+          const { data: sequences, error: seqError } = await adminClient
+            .from('follow_up_sequences')
+            .select('*')
+            .eq('trigger_event', triggerEvent)
+            .or(`temperature.eq.${temperature},temperature.is.null`)
+            .eq('is_active', true);
+
+          if (seqError) {
+            console.error(
+              'updateLeadStatus: error loading follow_up_sequences',
+              seqError
+            );
+          } else if (sequences && sequences.length > 0) {
+            const now = Date.now();
+            const followUps = sequences.map((seq) => ({
+              lead_id: updatedLead.id,
+              sequence_id: seq.id,
+              scheduled_at: new Date(
+                now + (seq.delay_minutes || 0) * 60_000
+              ).toISOString(),
+              channel: seq.channel || 'whatsapp',
+              status: 'pending',
+            }));
+
+            await adminClient
+              .from('scheduled_follow_ups')
+              .insert(followUps);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('updateLeadStatus: follow-up scheduling error', err);
+    }
+
+    return updatedLead as Lead;
   }
 
   async assignLead(

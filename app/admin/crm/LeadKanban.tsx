@@ -1,7 +1,7 @@
 'use client';
 
 // =====================================================
-// LEAD KANBAN - DRAG & DROP KANBAN BOARD
+// LEAD KANBAN - DRAG & DROP KANBAN BOARD WITH AI
 // =====================================================
 
 import React, { useState } from 'react';
@@ -14,6 +14,10 @@ import {
   MapPin,
   GripVertical,
   MoreHorizontal,
+  Flame,
+  Thermometer,
+  Snowflake,
+  Sparkles,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import type { Lead, LeadStatus } from '@/types';
@@ -73,12 +77,10 @@ export default function LeadKanban({
     setDragOverColumn(null);
 
     if (draggedLead && draggedLead.status !== newStatus) {
-      // Check if status change is allowed
       const allowedNextSteps = LEAD_STATUS_CONFIG[draggedLead.status]?.nextSteps || [];
       if (allowedNextSteps.includes(newStatus) || newStatus === draggedLead.status) {
         await onStatusUpdate(draggedLead.id, newStatus);
       } else {
-        // Show warning that this transition isn't allowed
         alert(`Cannot move lead from "${draggedLead.status}" to "${newStatus}"`);
       }
     }
@@ -142,11 +144,58 @@ export default function LeadKanban({
 }
 
 // =====================================================
-// KANBAN CARD
+// TEMPERATURE BADGE COMPONENT
+// =====================================================
+
+function TemperatureBadge({ temperature }: { temperature?: string | null }) {
+  if (!temperature) return null;
+
+  const config: Record<string, { label: string; bg: string; icon: React.ElementType }> = {
+    hot: { label: 'HOT', bg: 'bg-red-500 text-white', icon: Flame },
+    warm: { label: 'WARM', bg: 'bg-orange-100 text-orange-700', icon: Thermometer },
+    cold: { label: 'COLD', bg: 'bg-blue-100 text-blue-700', icon: Snowflake },
+  };
+
+  const { label, bg, icon: Icon } = config[temperature] || config.warm;
+
+  return (
+    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${bg}`}>
+      <Icon className="w-2.5 h-2.5" />
+      {label}
+    </span>
+  );
+}
+
+// =====================================================
+// LEAD SCORE BADGE COMPONENT
+// =====================================================
+
+function LeadScoreBadge({ score }: { score?: number | null }) {
+  if (score === null || score === undefined) return null;
+
+  let bgColor = 'bg-gray-100 text-gray-600';
+  if (score >= 75) bgColor = 'bg-green-100 text-green-700';
+  else if (score >= 50) bgColor = 'bg-yellow-100 text-yellow-700';
+  else if (score >= 25) bgColor = 'bg-orange-100 text-orange-700';
+  else bgColor = 'bg-red-100 text-red-700';
+
+  return (
+    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${bgColor}`}>
+      {score}
+    </span>
+  );
+}
+
+// =====================================================
+// KANBAN CARD WITH AI FEATURES
 // =====================================================
 
 interface KanbanCardProps {
-  lead: Lead;
+  lead: Lead & {
+    temperature?: string | null;
+    score?: number | null;
+    ai_suggested_action?: string | null;
+  };
   onDragStart: (e: React.DragEvent, lead: Lead) => void;
   onDragEnd: () => void;
   isDragging: boolean;
@@ -162,7 +211,7 @@ function KanbanCard({ lead, onDragStart, onDragEnd, isDragging }: KanbanCardProp
       onDragEnd={onDragEnd}
       className={`bg-white rounded-lg border shadow-sm p-3 cursor-grab active:cursor-grabbing transition-all ${
         isDragging ? 'opacity-50 scale-95 rotate-2' : 'hover:shadow-md'
-      }`}
+      } ${lead.temperature === 'hot' ? 'border-l-4 border-l-red-500' : ''}`}
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-2">
@@ -172,43 +221,49 @@ function KanbanCard({ lead, onDragStart, onDragEnd, isDragging }: KanbanCardProp
             <User className="w-4 h-4 text-gray-500" />
           </div>
         </div>
-        <div className="relative">
-          <button
-            onClick={() => setShowMenu(!showMenu)}
-            className="p-1 hover:bg-gray-100 rounded"
-          >
-            <MoreHorizontal className="w-4 h-4 text-gray-400" />
-          </button>
-          {showMenu && (
-            <>
-              <div
-                className="fixed inset-0 z-10"
-                onClick={() => setShowMenu(false)}
-              />
-              <div className="absolute right-0 top-full mt-1 w-32 bg-white rounded-lg shadow-lg border py-1 z-20">
-                <Link
-                  href={`/admin/crm/${lead.id}`}
-                  className="block px-3 py-2 text-sm hover:bg-gray-50"
-                >
-                  View Details
-                </Link>
-                <a
-                  href={`tel:${lead.phone}`}
-                  className="block px-3 py-2 text-sm hover:bg-gray-50"
-                >
-                  Call
-                </a>
-                <a
-                  href={`https://wa.me/91${lead.phone.replace(/\D/g, '').slice(-10)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block px-3 py-2 text-sm hover:bg-gray-50"
-                >
-                  WhatsApp
-                </a>
-              </div>
-            </>
-          )}
+        <div className="flex items-center gap-1">
+          {/* Temperature & Score Badges */}
+          <TemperatureBadge temperature={lead.temperature} />
+          <LeadScoreBadge score={lead.score} />
+          
+          <div className="relative">
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="p-1 hover:bg-gray-100 rounded"
+            >
+              <MoreHorizontal className="w-4 h-4 text-gray-400" />
+            </button>
+            {showMenu && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setShowMenu(false)}
+                />
+                <div className="absolute right-0 top-full mt-1 w-32 bg-white rounded-lg shadow-lg border py-1 z-20">
+                  <Link
+                    href={`/admin/crm/leads/${lead.id}`}
+                    className="block px-3 py-2 text-sm hover:bg-gray-50"
+                  >
+                    View Details
+                  </Link>
+                  <a
+                    href={`tel:${lead.phone}`}
+                    className="block px-3 py-2 text-sm hover:bg-gray-50"
+                  >
+                    Call
+                  </a>
+                  <a
+                    href={`https://wa.me/91${lead.phone.replace(/\D/g, '').slice(-10)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block px-3 py-2 text-sm hover:bg-gray-50"
+                  >
+                    WhatsApp
+                  </a>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -223,6 +278,18 @@ function KanbanCard({ lead, onDragStart, onDragEnd, isDragging }: KanbanCardProp
           <div className="flex items-center gap-1 text-xs text-gray-400 mt-1">
             <MapPin className="w-3 h-3" />
             {lead.city}
+          </div>
+        )}
+
+        {/* AI Suggested Action */}
+        {lead.ai_suggested_action && (
+          <div className="mt-2 p-2 bg-amber-50 rounded border border-amber-200">
+            <div className="flex items-start gap-1.5">
+              <Sparkles className="w-3 h-3 text-amber-500 mt-0.5 flex-shrink-0" />
+              <p className="text-[11px] text-amber-700 leading-tight">
+                {lead.ai_suggested_action}
+              </p>
+            </div>
           </div>
         )}
 
@@ -251,7 +318,7 @@ function KanbanCard({ lead, onDragStart, onDragEnd, isDragging }: KanbanCardProp
         </div>
 
         {/* Tags */}
-        <div className="flex items-center gap-2 mt-2">
+        <div className="flex items-center gap-2 mt-2 flex-wrap">
           <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-xs rounded capitalize">
             {lead.source.replace('_', ' ')}
           </span>

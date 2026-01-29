@@ -6,7 +6,13 @@ import { OrderList } from './components/OrderList';
 import { OrderFilters } from './components/OrderFilters';
 import { StatusUpdateModal } from './components/StatusUpdateModal';
 import { OrderStatus, Order } from '@/types/order';
-import { Plus, RefreshCw, AlertCircle } from 'lucide-react';
+import {
+  Plus,
+  RefreshCw,
+  AlertCircle,
+  RotateCcw,
+  Loader2,
+} from 'lucide-react';
 import Link from 'next/link';
 
 export default function OrdersPage() {
@@ -23,6 +29,10 @@ export default function OrdersPage() {
 
   const { data, isLoading, error, refetch } = useOrders(filters);
 
+  // Refill reminder state
+  const [refillLoading, setRefillLoading] = useState(false);
+  const [refillMessage, setRefillMessage] = useState<string | null>(null);
+
   const handleStatusUpdate = (order: Order) => {
     setSelectedOrder(order);
     setShowStatusModal(true);
@@ -34,14 +44,51 @@ export default function OrdersPage() {
     refetch();
   };
 
+  const handleRefillReminders = async () => {
+    const ok = window.confirm(
+      'Delivered customers ke liye WhatsApp refill reminder bhejna hai?'
+    );
+    if (!ok) return;
+
+    setRefillLoading(true);
+    setRefillMessage(null);
+
+    try {
+      const res = await fetch('/api/admin/orders/refill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: 50 }),
+      });
+
+      const data: any = await res.json();
+      if (!res.ok || !data.success) {
+        console.error('Refill reminder error:', data);
+        setRefillMessage(
+          'Refill reminders bhejne me problem aayi. Thodi der baad dobara try karein.'
+        );
+      } else {
+        setRefillMessage(
+          `Refill reminders sent to ${data.successCount}/${data.processed} orders. Failed: ${data.failCount}.`
+        );
+      }
+    } catch (e) {
+      console.error(e);
+      setRefillMessage(
+        'Refill reminders failed (network issue). Thodi der baad dubara try karein.'
+      );
+    } finally {
+      setRefillLoading(false);
+    }
+  };
+
   if (error) {
     return (
       <div className="p-6">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
           <AlertCircle className="h-5 w-5 text-red-600" />
           <p className="text-red-600">Error loading orders: {error.message}</p>
-          <button 
-            onClick={() => refetch()} 
+          <button
+            onClick={() => refetch()}
             className="ml-auto text-sm text-red-700 font-medium hover:underline"
           >
             Retry
@@ -55,25 +102,46 @@ export default function OrdersPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Order Management</h1>
             <p className="mt-2 text-gray-600">
-              Manage order statuses, track deliveries, and handle returns
+              Manage order statuses, track deliveries, handle returns & refills
             </p>
           </div>
-          
-          <div className="flex items-center gap-3">
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Refill reminders button */}
+            <button
+              onClick={handleRefillReminders}
+              disabled={refillLoading}
+              className="inline-flex items-center px-3 py-2 border border-orange-300 rounded-lg shadow-sm text-xs font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 focus:outline-none disabled:opacity-60"
+            >
+              {refillLoading ? (
+                <>
+                  <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                  Sending Refills...
+                </>
+              ) : (
+                <>
+                  <RotateCcw className="h-3 w-3 mr-2" />
+                  Send Refill Reminders
+                </>
+              )}
+            </button>
+
             {/* Refresh Button */}
             <button
               onClick={() => refetch()}
               className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw
+                className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`}
+              />
               Refresh
             </button>
 
-            {/* 👇 THIS IS THE NEW BUTTON YOU NEEDED */}
+            {/* Create Manual Order */}
             <Link
               href="/admin/orders/manual"
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none"
@@ -84,10 +152,18 @@ export default function OrdersPage() {
           </div>
         </div>
 
+        {refillMessage && (
+          <div className="mb-4 bg-orange-50 border border-orange-200 text-orange-800 text-sm px-4 py-2 rounded-lg">
+            {refillMessage}
+          </div>
+        )}
+
         {/* Filters */}
         <OrderFilters
           filters={filters}
-          onFilterChange={(newFilters) => setFilters({ ...filters, ...newFilters, page: 1 })}
+          onFilterChange={(newFilters) =>
+            setFilters({ ...filters, ...newFilters, page: 1 })
+          }
         />
 
         {/* Stats Summary */}
@@ -100,7 +176,8 @@ export default function OrdersPage() {
           <StatCard
             label="In Transit"
             value={
-              data?.orders.filter((o) => o.current_status === 'in_transit').length || 0
+              data?.orders.filter((o) => o.current_status === 'in_transit')
+                .length || 0
             }
             color="orange"
           />

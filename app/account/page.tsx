@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
-import { createClient } from "@/app/lib/supabase/server"
+import { createServerSupabaseClient as createClient } from "@/lib/supabase/server"
 import { signout } from "@/app/(auth)/login/actions"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"

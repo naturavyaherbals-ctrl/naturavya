@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import { createClient } from "@/app/lib/supabase/server"
+import { createServerSupabaseClient as createClient } from "@/lib/supabase/server"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import EditCategoryForm from "./edit-form" // Import the client form

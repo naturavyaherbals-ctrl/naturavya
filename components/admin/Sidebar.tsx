@@ -11,7 +11,6 @@ import {
   FolderTree,
   Settings,
   Boxes,
-  UserCircle,
   Phone,
   ChevronDown,
   Menu,
@@ -19,8 +18,7 @@ import {
   LogOut,
   FileText,
   Globe,
-  MessageSquare,
-  Image as ImageIcon
+  Truck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/helpers';
 import { User } from '@/types/database';
@@ -33,7 +31,7 @@ interface NavItem {
   name: string;
   href: string;
   icon: React.ElementType;
-  roles?: string[]; // roles allowed to see this
+  roles?: string[];
   children?: { name: string; href: string }[];
 }
 
@@ -71,18 +69,25 @@ const navigation: NavItem[] = [
     roles: ['super_admin', 'admin', 'manager'],
   },
   {
+    name: 'Logistics',
+    href: '/admin/logistics',
+    icon: Truck,
+    roles: ['super_admin'],
+  },
+  {
     name: 'CRM',
     href: '#',
     icon: Phone,
     children: [
       { name: 'Dashboard', href: '/admin/crm' },
+      { name: 'My Day', href: '/admin/crm/today' },
+      { name: 'Pipeline', href: '/admin/crm/pipeline' },
       { name: 'All Leads', href: '/admin/crm/leads' },
       { name: 'My Leads', href: '/admin/crm/leads?my=true' },
       { name: 'Team', href: '/admin/crm/team' },
       { name: 'WhatsApp', href: '/admin/crm/whatsapp' },
     ],
   },
-  // --- NEW SECTIONS START ---
   {
     name: 'Content',
     href: '#',
@@ -103,9 +108,9 @@ const navigation: NavItem[] = [
     children: [
       { name: 'SEO Settings', href: '/admin/seo' },
       { name: 'Ad Analytics', href: '/admin/analytics/ads' },
+      { name: 'RTO Report', href: '/admin/analytics/rto' },
     ],
   },
-  // --- NEW SECTIONS END ---
   {
     name: 'Customers',
     href: '/admin/customers',
@@ -123,9 +128,12 @@ const navigation: NavItem[] = [
 export function AdminSidebar({ user }: SidebarProps) {
   const pathname = usePathname();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  
-  // Default expanded sections to make sure you see them immediately
-  const [expandedItems, setExpandedItems] = useState<string[]>(['CRM', 'Content', 'Marketing']);
+
+  const [expandedItems, setExpandedItems] = useState<string[]>([
+    'CRM',
+    'Content',
+    'Marketing',
+  ]);
 
   const toggleExpanded = (name: string) => {
     setExpandedItems((prev) =>
@@ -133,15 +141,14 @@ export function AdminSidebar({ user }: SidebarProps) {
     );
   };
 
-  // Helper to normalize role check (handles case sensitivity)
   const hasPermission = (allowedRoles?: string[]) => {
     if (!allowedRoles) return true;
     const userRole = user?.role?.toLowerCase().replace(' ', '_');
-    return allowedRoles.some(r => r === userRole);
+    return allowedRoles.some((r) => r === userRole);
   };
 
-  const filteredNavigation = navigation.filter(
-    (item) => hasPermission(item.roles)
+  const filteredNavigation = navigation.filter((item) =>
+    hasPermission(item.roles)
   );
 
   const NavContent = () => (
@@ -149,7 +156,9 @@ export function AdminSidebar({ user }: SidebarProps) {
       {/* Logo */}
       <div className="flex items-center h-16 px-6 border-b border-gray-800">
         <Link href="/admin" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center text-white font-bold">N</div>
+          <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center text-white font-bold">
+            N
+          </div>
           <span className="text-xl font-bold">Naturavya</span>
         </Link>
       </div>
@@ -157,7 +166,10 @@ export function AdminSidebar({ user }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {filteredNavigation.map((item) => {
-          const isActive = pathname === item.href || (item.children && item.children.some(child => pathname.startsWith(child.href)));
+          const isActive =
+            pathname === item.href ||
+            (item.children &&
+              item.children.some((child) => pathname.startsWith(child.href)));
           const isExpanded = expandedItems.includes(item.name);
           const hasChildren = item.children && item.children.length > 0;
 
@@ -169,7 +181,9 @@ export function AdminSidebar({ user }: SidebarProps) {
                     onClick={() => toggleExpanded(item.name)}
                     className={cn(
                       'w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors mb-1',
-                      isActive ? 'bg-gray-800 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                      isActive
+                        ? 'bg-gray-800 text-white'
+                        : 'text-gray-400 hover:bg-gray-800 hover:text-white'
                     )}
                   >
                     <div className="flex items-center">
@@ -232,11 +246,15 @@ export function AdminSidebar({ user }: SidebarProps) {
             </div>
           </div>
           <div className="ml-3 flex-1 min-w-0">
-            <p className="text-sm font-medium text-white truncate">{user.full_name}</p>
-            <p className="text-xs text-gray-400 capitalize">{user.role.replace('_', ' ')}</p>
+            <p className="text-sm font-medium text-white truncate">
+              {user.full_name}
+            </p>
+            <p className="text-xs text-gray-400 capitalize">
+              {user.role.replace('_', ' ')}
+            </p>
           </div>
           <button
-            onClick={() => window.location.href = '/api/auth/logout'}
+            onClick={() => (window.location.href = '/api/auth/logout')}
             className="p-2 text-gray-400 hover:text-white transition-colors"
             title="Logout"
           >
@@ -258,7 +276,10 @@ export function AdminSidebar({ user }: SidebarProps) {
 
       {isMobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsMobileOpen(false)} />
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setIsMobileOpen(false)}
+          />
           <div className="fixed inset-y-0 left-0 w-64 bg-[#1a1c23] shadow-xl transition-transform">
             <button
               onClick={() => setIsMobileOpen(false)}

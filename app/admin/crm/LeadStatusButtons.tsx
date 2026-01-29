@@ -49,7 +49,7 @@ const STATUS_BUTTONS: StatusButton[] = [
     hoverColor: 'hover:bg-gray-200',
   },
   {
-    status: 'callback_requested',
+    status: 'callback',
     label: 'Callback',
     shortLabel: 'CB',
     icon: <PhoneForwarded className="w-3.5 h-3.5" />,
@@ -134,12 +134,13 @@ export default function LeadStatusButtons({
   const [noteText, setNoteText] = useState('');
 
   // Get allowed next statuses based on current status
-  const allowedStatuses = showAll 
-    ? STATUS_BUTTONS.map(b => b.status)
+  const allowedStatuses = showAll
+    ? STATUS_BUTTONS.map((b) => b.status)
     : LEAD_STATUS_CONFIG[currentStatus]?.nextSteps || [];
 
   const visibleButtons = STATUS_BUTTONS.filter(
-    button => allowedStatuses.includes(button.status) || button.status === currentStatus
+    (button) =>
+      allowedStatuses.includes(button.status) || button.status === currentStatus
   );
 
   const handleStatusClick = async (status: LeadStatus) => {
@@ -171,9 +172,11 @@ export default function LeadStatusButtons({
       <>
         <div className="flex flex-wrap gap-1">
           {/* Current Status Badge */}
-          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
-            LEAD_STATUS_CONFIG[currentStatus]?.bgColor || 'bg-gray-100'
-          } ${LEAD_STATUS_CONFIG[currentStatus]?.color || 'text-gray-700'}`}>
+          <span
+            className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
+              LEAD_STATUS_CONFIG[currentStatus]?.bgColor || 'bg-gray-100'
+            } ${LEAD_STATUS_CONFIG[currentStatus]?.color || 'text-gray-700'}`}
+          >
             {LEAD_STATUS_CONFIG[currentStatus]?.label || currentStatus}
           </span>
 
@@ -192,7 +195,11 @@ export default function LeadStatusButtons({
                   className={`
                     w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs font-medium text-left transition-all
                     ${button.bgColor} ${button.color} ${button.hoverColor}
-                    ${button.status === currentStatus ? 'ring-2 ring-offset-1 ring-gray-300' : ''}
+                    ${
+                      button.status === currentStatus
+                        ? 'ring-2 ring-offset-1 ring-gray-300'
+                        : ''
+                    }
                     ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}
                   `}
                 >
@@ -234,7 +241,11 @@ export default function LeadStatusButtons({
             className={`
               inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all
               ${button.bgColor} ${button.color} ${button.hoverColor}
-              ${currentStatus === button.status ? 'ring-2 ring-offset-1 ring-gray-400 shadow-sm' : ''}
+              ${
+                currentStatus === button.status
+                  ? 'ring-2 ring-offset-1 ring-gray-400 shadow-sm'
+                  : ''
+              }
               ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}
             `}
           >

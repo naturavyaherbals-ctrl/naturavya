@@ -88,7 +88,7 @@ export default function LeadDetailModal({
 
   const fetchLeadDetails = async () => {
     try {
-      const response = await fetch(`/api/leads/${lead.id}`);
+      const response = await fetch(`/api/admin/leads/${lead.id}`);
       const data = await response.json();
       if (data.success) {
         setLead(data.data);
@@ -102,7 +102,7 @@ export default function LeadDetailModal({
   // Handle status change
   const handleStatusChange = async (leadId: string, newStatus: LeadStatus, notes?: string) => {
     try {
-      const response = await fetch(`/api/leads/${leadId}`, {
+      const response = await fetch(`/api/admin/leads/${leadId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus, status_notes: notes }),
@@ -124,7 +124,7 @@ export default function LeadDetailModal({
 
     setIsAddingNote(true);
     try {
-      const response = await fetch(`/api/leads/${lead.id}/activities`, {
+      const response = await fetch(`/api/admin/leads/${lead.id}/activities`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -151,7 +151,7 @@ export default function LeadDetailModal({
     if (!followUpDate) return;
 
     try {
-      const response = await fetch(`/api/leads/${lead.id}`, {
+      const response = await fetch(`/api/admin/leads/${lead.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -174,7 +174,7 @@ export default function LeadDetailModal({
   const handleSaveEdit = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/leads/${lead.id}`, {
+      const response = await fetch(`/api/admin/leads/${lead.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editForm),

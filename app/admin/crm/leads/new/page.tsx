@@ -6,12 +6,37 @@ import Link from 'next/link';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 
 const INDIAN_STATES = [
-  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
-  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
-  'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram',
-  'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
-  'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
-  'Delhi', 'Jammu and Kashmir', 'Ladakh',
+  'Andhra Pradesh',
+  'Arunachal Pradesh',
+  'Assam',
+  'Bihar',
+  'Chhattisgarh',
+  'Goa',
+  'Gujarat',
+  'Haryana',
+  'Himachal Pradesh',
+  'Jharkhand',
+  'Karnataka',
+  'Kerala',
+  'Madhya Pradesh',
+  'Maharashtra',
+  'Manipur',
+  'Meghalaya',
+  'Mizoram',
+  'Nagaland',
+  'Odisha',
+  'Punjab',
+  'Rajasthan',
+  'Sikkim',
+  'Tamil Nadu',
+  'Telangana',
+  'Tripura',
+  'Uttar Pradesh',
+  'Uttarakhand',
+  'West Bengal',
+  'Delhi',
+  'Jammu and Kashmir',
+  'Ladakh',
 ];
 
 const LEAD_SOURCES = [
@@ -71,10 +96,19 @@ export default function AddLeadPage() {
   };
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+    e:
+      | React.ChangeEvent<HTMLInputElement>
+      | React.ChangeEvent<HTMLSelectElement>
+      | React.ChangeEvent<HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]:
+        name === 'priority'
+          ? Number(value)
+          : value,
+    }));
     if (error) setError('');
   };
 
@@ -82,13 +116,13 @@ export default function AddLeadPage() {
     e.preventDefault();
     setError('');
 
-    // Validate required fields
     if (!formData.fullName.trim()) {
       setError('Customer name is required');
       return;
     }
 
-    if (!formData.phone.trim() || formData.phone.replace(/\D/g, '').length !== 10) {
+    const cleanPhone = formData.phone.replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length !== 10) {
       setError('Valid 10-digit phone number is required');
       return;
     }
@@ -96,10 +130,27 @@ export default function AddLeadPage() {
     setIsSubmitting(true);
 
     try {
+      const payload = {
+        full_name: formData.fullName.trim(),
+        phone: cleanPhone,
+        alternate_phone: formData.alternatePhone || null,
+        email: formData.email || null,
+        city: formData.city || null,
+        state: formData.state || null,
+        pincode: formData.pincode || null,
+        address: formData.address || null,
+        source: formData.source || 'manual',
+        source_campaign: formData.sourceCampaign || null,
+        assigned_to: formData.assignedTo || null,
+        priority: Number(formData.priority) || 0,
+        budget_range: formData.budgetRange || null,
+        notes: formData.notes || null,
+      };
+
       const response = await fetch('/api/admin/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -141,7 +192,9 @@ export default function AddLeadPage() {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Contact Information */}
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Contact Information</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            Contact Information
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -205,7 +258,9 @@ export default function AddLeadPage() {
 
         {/* Address */}
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Address</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            Address
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -273,7 +328,9 @@ export default function AddLeadPage() {
 
         {/* Lead Details */}
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Lead Details</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            Lead Details
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -353,9 +410,15 @@ export default function AddLeadPage() {
               >
                 <option value="">Not specified</option>
                 <option value="0-500">₹0 - ₹500</option>
-                <option value="500-1000">₹500 - ₹1,000</option>
-                <option value="1000-2000">₹1,000 - ₹2,000</option>
-                <option value="2000-5000">₹2,000 - ₹5,000</option>
+                <option value="500-1000">
+                  ₹500 - ₹1,000
+                </option>
+                <option value="1000-2000">
+                  ₹1,000 - ₹2,000
+                </option>
+                <option value="2000-5000">
+                  ₹2,000 - ₹5,000
+                </option>
                 <option value="5000+">₹5,000+</option>
               </select>
             </div>

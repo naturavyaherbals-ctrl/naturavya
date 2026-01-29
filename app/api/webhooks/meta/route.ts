@@ -6,12 +6,11 @@ import { whatsappService } from '@/lib/services/whatsappService';
 // Verify webhook (GET request from Meta)
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  
+
   const mode = searchParams.get('hub.mode');
   const token = searchParams.get('hub.verify_token');
   const challenge = searchParams.get('hub.challenge');
 
-  // Verify token matches
   if (mode === 'subscribe' && token === process.env.META_WEBHOOK_VERIFY_TOKEN) {
     console.log('Meta webhook verified');
     return new NextResponse(challenge, { status: 200 });
@@ -27,7 +26,6 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    // Log the webhook event
     const { data: logEntry } = await adminClient
       .from('meta_webhook_events')
       .insert({
@@ -38,16 +36,12 @@ export async function POST(request: NextRequest) {
       .select('id')
       .single();
 
-    // Process based on object type
     if (body.object === 'page' || body.object === 'instagram') {
-      // Lead Gen webhook
-      await processLeadGenWebhook(body, logEntry?.id);
+      await processLeadGenWebhook(body, logEntry?.id || undefined);
     } else if (body.object === 'whatsapp_business_account') {
-      // WhatsApp webhook
-      await processWhatsAppWebhook(body, logEntry?.id);
+      await processWhatsAppWebhook(body, logEntry?.id || undefined);
     }
 
-    // Mark as processed
     if (logEntry?.id) {
       await adminClient
         .from('meta_webhook_events')
@@ -65,118 +59,213 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Process Lead Gen webhook
+// ------------------------
+// Lead Gen webhook handler
+// ------------------------
 async function processLeadGenWebhook(body: any, logId?: string) {
   const adminClient = createAdminClient();
 
   try {
     for (const entry of body.entry || []) {
       for (const change of entry.changes || []) {
-        if (change.field === 'leadgen') {
-          const leadgenData = change.value;
+        if (change.field !== 'leadgen') continue;
 
-          // Get form configuration
-          const { data: formConfig } = await adminClient
-            .from('meta_lead_forms')
-            .select('*, assignment_rule:lead_assignment_rules(*), default_assignee:team_members(*, user:users(*))')
-            .eq('form_id', leadgenData.form_id)
-            .single();
+        const leadgenData = change.value;
 
-          // Fetch lead data from Meta API if needed
-          const leadData = await fetchLeadData(leadgenData.leadgen_id, entry.id);
+        // 1) Form config (mapping + tags + auto‑respond)
+        const { data: formConfig } = await adminClient
+          .from('meta_lead_forms')
+          .select(
+            `
+            *,
+            assignment_rule:lead_assignment_rules(*),
+            default_assignee:team_members(*, user:users(*))
+          `
+          )
+          .eq('form_id', leadgenData.form_id)
+          .single();
 
-          // Map fields based on form configuration
-          const fieldMapping = formConfig?.field_mapping || {};
-          const mappedData: Record<string, any> = {};
+        // 2) Lead detail from Meta Graph
+        const leadData = await fetchLeadData(
+          leadgenData.leadgen_id,
+          entry.id
+        );
 
-          for (const [metaField, ourField] of Object.entries(fieldMapping)) {
-            const fieldData = leadData?.field_data?.find((f: any) => f.name === metaField);
-            if (fieldData) {
-              mappedData[ourField as string] = fieldData.values?.[0];
-            }
+        // 3) Field mapping → our columns
+        const fieldMapping = formConfig?.field_mapping || {};
+        const mappedData: Record<string, any> = {};
+
+        for (const [metaField, ourField] of Object.entries(fieldMapping)) {
+          const field = leadData?.field_data?.find(
+            (f: any) => f.name === metaField
+          );
+          if (field) {
+            mappedData[ourField as string] = field.values?.[0];
           }
+        }
 
-          // Create lead
-          const { data: newLead, error: leadError } = await adminClient
-            .from('leads')
-            .insert({
-              full_name: mappedData.full_name || mappedData.name || 'Unknown',
-              phone: mappedData.phone || mappedData.phone_number || '',
-              email: mappedData.email || null,
-              city: mappedData.city || null,
-              state: mappedData.state || null,
-              address: mappedData.address || null,
-              source: 'meta_ads',
-              source_campaign: leadgenData.campaign_name || leadData?.campaign_name,
-              source_adset: leadgenData.adset_name || leadData?.adset_name,
-              source_ad: leadgenData.ad_name || leadData?.ad_name,
+        const fullName =
+          mappedData.full_name || mappedData.name || 'Unknown';
+        const phone =
+          mappedData.phone || mappedData.phone_number || '';
+
+        // 4) Insert into leads table (match existing schema)
+        const { data: newLead, error: leadError } = await adminClient
+          .from('leads')
+          .insert({
+            full_name: fullName,
+            phone,
+            email: mappedData.email || null,
+            city: mappedData.city || null,
+            state: mappedData.state || null,
+            address: mappedData.address || null,
+            source: 'meta_ads',
+            // Use campaign/ad/adset fields from webhook/graph if available
+            campaign_name:
+              leadgenData.campaign_name || leadData?.campaign_name || null,
+            source_campaign:
+              leadgenData.campaign_name || leadData?.campaign_name || null,
+            ad_id: leadgenData.ad_id || leadData?.ad_id || null,
+            adset_id: leadgenData.adset_id || leadData?.adset_id || null,
+            form_id: leadgenData.form_id || null,
+            form_name:
+              leadgenData.form_name || formConfig?.name || null,
+            raw_data: {
+              ...leadgenData,
+              ...leadData,
               meta_lead_id: leadgenData.leadgen_id,
-              raw_data: {
-                ...leadgenData,
-                ...leadData,
+            },
+            tags: formConfig?.auto_tags || null,
+            status: 'new',
+            priority: 8, // high priority for ad leads
+          })
+          .select('*')
+          .single();
+
+        if (leadError || !newLead) {
+          console.error('Lead creation error:', leadError);
+          throw leadError;
+        }
+
+        // 5) Trigger AI scorer edge function (optional)
+        if (
+          process.env.NEXT_PUBLIC_SUPABASE_URL &&
+          process.env.SUPABASE_SERVICE_ROLE_KEY
+        ) {
+          fetch(
+            `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/ai-lead-scorer`,
+            {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+                'Content-Type': 'application/json',
               },
-              tags: formConfig?.auto_tags || null,
-              status: 'new',
-              priority: 8, // High priority for ad leads
+              body: JSON.stringify({ lead_id: newLead.id }),
+            }
+          ).catch((err) =>
+            console.error('Error calling ai-lead-scorer function:', err)
+          );
+        }
+
+        // 6) Update form stats
+        if (formConfig) {
+          await adminClient
+            .from('meta_lead_forms')
+            .update({
+              total_leads: (formConfig.total_leads || 0) + 1,
+              leads_today: (formConfig.leads_today || 0) + 1,
+              last_lead_at: new Date().toISOString(),
             })
+            .eq('id', formConfig.id);
+        }
+
+        // 7) Assign lead
+        let assignmentResult;
+        if (formConfig?.default_assignee) {
+          assignmentResult = await leadAssignmentService.reassignLead(
+            newLead.id,
+            formConfig.default_assignee.id,
+            'Default form assignment'
+          );
+        } else {
+          assignmentResult = await leadAssignmentService.assignLead(
+            newLead
+          );
+        }
+
+        // 8) Schedule follow-up sequences (trigger_event = 'new_lead')
+        try {
+          const temperature =
+            newLead.temperature ||
+            (newLead.score >= 75
+              ? 'hot'
+              : newLead.score >= 45
+              ? 'warm'
+              : 'cold');
+
+          const { data: sequences, error: seqError } = await adminClient
+            .from('follow_up_sequences')
             .select('*')
-            .single();
+            .eq('trigger_event', 'new_lead')
+            .or(`temperature.eq.${temperature},temperature.is.null`)
+            .eq('is_active', true);
 
-          if (leadError) {
-            console.error('Lead creation error:', leadError);
-            throw leadError;
-          }
+          if (seqError) {
+            console.error('Error loading follow_up_sequences:', seqError);
+          } else if (sequences && sequences.length > 0) {
+            const now = Date.now();
+            const followUps = sequences.map((seq) => ({
+              lead_id: newLead.id,
+              sequence_id: seq.id,
+              scheduled_at: new Date(
+                now + (seq.delay_minutes || 0) * 60_000
+              ).toISOString(),
+              channel: seq.channel || 'whatsapp',
+              status: 'pending',
+              message_content: seq.message_template,
+            }));
 
-          // Update form stats
-          if (formConfig) {
             await adminClient
-              .from('meta_lead_forms')
-              .update({
-                total_leads: formConfig.total_leads + 1,
-                leads_today: formConfig.leads_today + 1,
-                last_lead_at: new Date().toISOString(),
-              })
-              .eq('id', formConfig.id);
+              .from('scheduled_follow_ups')
+              .insert(followUps);
           }
+        } catch (err) {
+          console.error('Error scheduling follow-up sequences:', err);
+        }
 
-          // Assign lead
-          let assignmentResult;
+        // 9) Log assignment into webhook event
+        if (logId) {
+          await adminClient
+            .from('meta_webhook_events')
+            .update({
+              processing_result: {
+                lead_id: newLead.id,
+                assigned_to: assignmentResult.teamMemberId,
+                success: assignmentResult.success,
+              },
+            })
+            .eq('id', logId);
+        }
 
-          if (formConfig?.default_assignee) {
-            // Use form's default assignee
-            assignmentResult = await leadAssignmentService.reassignLead(
-              newLead.id,
-              formConfig.default_assignee.id,
-              'Default form assignment'
-            );
-          } else {
-            // Use assignment rules or round-robin
-            assignmentResult = await leadAssignmentService.assignLead(newLead);
-          }
+        // 10) Optional auto WhatsApp welcome
+        if (
+          formConfig?.auto_respond &&
+          formConfig?.auto_response_template_id &&
+          assignmentResult.teamMember
+        ) {
+          const delay =
+            (formConfig.auto_response_delay_seconds || 30) * 1000;
 
-          // Log assignment result
-          if (logId) {
-            await adminClient
-              .from('meta_webhook_events')
-              .update({
-                processing_result: {
-                  lead_id: newLead.id,
-                  assigned_to: assignmentResult.teamMemberId,
-                  success: assignmentResult.success,
-                },
-              })
-              .eq('id', logId);
-          }
-
-          // Send auto-response via WhatsApp if configured
-          if (formConfig?.auto_respond && formConfig?.auto_response_template_id && assignmentResult.teamMember) {
-            // Delay before sending
-            const delay = (formConfig.auto_response_delay_seconds || 30) * 1000;
-            
-            setTimeout(async () => {
-              await whatsappService.sendLeadWelcome(newLead, assignmentResult.teamMember);
-            }, delay);
-          }
+          setTimeout(async () => {
+            try {
+              await whatsappService.sendLeadWelcome(
+                newLead,
+                assignmentResult.teamMember
+              );
+            } catch (err) {
+              console.error('Auto WhatsApp welcome error:', err);
+            }
+          }, delay);
         }
       }
     }
@@ -186,16 +275,16 @@ async function processLeadGenWebhook(body: any, logId?: string) {
   }
 }
 
-// Process WhatsApp webhook
+// ---------------------------
+// WhatsApp webhook handler
+// ---------------------------
 async function processWhatsAppWebhook(body: any, logId?: string) {
   try {
     for (const entry of body.entry || []) {
       for (const change of entry.changes || []) {
         if (change.value?.messages) {
-          // Incoming message
           await whatsappService.processIncomingMessage(body);
         } else if (change.value?.statuses) {
-          // Message status update
           await whatsappService.processStatusUpdate(body);
         }
       }
@@ -206,11 +295,13 @@ async function processWhatsAppWebhook(body: any, logId?: string) {
   }
 }
 
-// Fetch lead data from Meta API
+// ---------------------------
+// Fetch lead from Meta Graph
+// ---------------------------
 async function fetchLeadData(leadgenId: string, pageId: string) {
   try {
     const accessToken = process.env.META_PAGE_ACCESS_TOKEN;
-    
+
     if (!accessToken) {
       console.warn('META_PAGE_ACCESS_TOKEN not configured');
       return null;

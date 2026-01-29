@@ -21,6 +21,10 @@ import {
   ChevronDown,
   User,
   Search,
+  Phone,
+  Flame,
+  Bot,
+  UserCheck,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -38,9 +42,24 @@ import { cn } from "@/lib/utils"
 
 const sidebarItems = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
+  { 
+    name: "AI Dashboard", 
+    href: "/admin/ai-dashboard", 
+    icon: Bot,
+    badge: "AI",
+    badgeColor: "bg-amber-500"
+  },
+  { 
+    name: "CRM / Leads", 
+    href: "/admin/crm", 
+    icon: Phone,
+    badge: "Hot",
+    badgeColor: "bg-red-500"
+  },
+  { name: "Team", href: "/admin/team", icon: UserCheck },
+  { name: "Orders", href: "/admin/orders", icon: ShoppingCart },
   { name: "Products", href: "/admin/products", icon: Package },
   { name: "Categories", href: "/admin/categories", icon: FolderTree },
-  { name: "Orders", href: "/admin/orders", icon: ShoppingCart },
   { name: "Customers", href: "/admin/customers", icon: Users },
   { name: "Promotions", href: "/admin/promotions", icon: Sparkles },
   { name: "Website Images", href: "/admin/website-images", icon: ImageIcon },
@@ -59,13 +78,10 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     setMounted(true)
   }, [])
 
-  // --- THE FIX STARTS HERE ---
   // If we are on the login page, DO NOT show the sidebar.
-  // Just show the login form (children) directly.
   if (pathname === "/admin/login") {
     return <>{children}</>
   }
-  // --- THE FIX ENDS HERE ---
 
   return (
     <Suspense fallback={null}>
@@ -93,7 +109,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             <Badge className="ml-auto">Admin</Badge>
           </div>
 
-          <nav className="p-4 space-y-1">
+          <nav className="p-4 space-y-1 overflow-y-auto max-h-[calc(100vh-4rem)]">
             {sidebarItems.map((item) => {
               const active = pathname === item.href || pathname.startsWith(item.href + "/")
               return (
@@ -107,7 +123,15 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                   )}
                 >
                   <item.icon className="h-4 w-4" />
-                  {item.name}
+                  <span className="flex-1">{item.name}</span>
+                  {item.badge && (
+                    <span className={cn(
+                      "px-1.5 py-0.5 text-[10px] font-medium rounded text-white",
+                      item.badgeColor || "bg-primary"
+                    )}>
+                      {item.badge}
+                    </span>
+                  )}
                 </Link>
               )
             })}
@@ -144,9 +168,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                   <DropdownMenuItem
                     className="text-destructive cursor-pointer"
                     onClick={async () => {
-                      // Call the logout API
                       await fetch("/admin/logout", { method: "POST" })
-                      // Redirect to login
                       window.location.href = "/admin/login"
                     }}
                   >

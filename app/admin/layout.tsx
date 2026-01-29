@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { AdminSidebar } from '@/components/admin/Sidebar'; // THIS IMPORT MUST MATCH
+import { AdminSidebar } from '@/components/admin/Sidebar';
 import { AdminHeader } from '@/components/admin/Header';
+import { AiAssistantLauncher } from '@/components/admin/AiAssistantLauncher';
 
 export default async function AdminLayout({
   children,
@@ -9,7 +10,9 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) {
     redirect('/admin/login');
@@ -22,7 +25,10 @@ export default async function AdminLayout({
     .eq('id', user.id)
     .single();
 
-  if (!userData || !['super_admin', 'admin', 'manager', 'agent'].includes(userData.role)) {
+  if (
+    !userData ||
+    !['super_admin', 'admin', 'manager', 'agent'].includes(userData.role)
+  ) {
     redirect('/');
   }
 
@@ -31,8 +37,9 @@ export default async function AdminLayout({
       <AdminSidebar user={userData} />
       <div className="lg:pl-64 flex flex-col min-h-screen">
         <AdminHeader user={userData} />
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-6 relative">
           {children}
+          <AiAssistantLauncher />
         </main>
       </div>
     </div>
