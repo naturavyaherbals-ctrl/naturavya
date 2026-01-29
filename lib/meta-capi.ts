@@ -25,10 +25,10 @@ export async function sendMetaCRMEvent({
           lead_event_source: "Naturavya CRM",
         },
         user_data: {
+          lead_id: leadId,
           ph: phone ? [sha256(phone)] : undefined,
           em: email ? [sha256(email)] : undefined,
         },
-        lead_id: leadId,
       },
     ],
   };
@@ -50,4 +50,3 @@ export async function sendMetaCRMEvent({
 
   return json;
 }
-
