@@ -1,13 +1,43 @@
 export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
+import { supabaseAdmin } from "@/lib/supabase-server"
 
 export async function GET(req: Request) {
   const aiKey = req.headers.get("x-ai-key")
 
+  if (aiKey !== process.env.AI_SECRET_KEY) {
+    return NextResponse.json(
+      { error: "Unauthorized AI access" },
+      { status: 401 }
+    )
+  }
+
+  const { searchParams } = new URL(req.url)
+  const orderId = searchParams.get("order_id")
+
+  if (!orderId) {
+    return NextResponse.json(
+      { error: "order_id missing" },
+      { status: 400 }
+    )
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("orders")
+    .select("id, status, awb, courier, created_at")
+    .eq("id", orderId)
+    .single()
+
+  if (error || !data) {
+    return NextResponse.json(
+      { error: "Order not found" },
+      { status: 404 }
+    )
+  }
+
   return NextResponse.json({
-    headerKey: aiKey,
-    envKey: process.env.AI_SECRET_KEY,
-    equal: aiKey === process.env.AI_SECRET_KEY
+    success: true,
+    order: data
   })
 }
