@@ -5,9 +5,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function GET(req: Request) {
   try {
-    /* ---------------- AI AUTH ---------------- */
+    /* -------- AI AUTH -------- */
     const aiKey = req.headers.get('x-ai-key');
-
     if (!aiKey || aiKey !== process.env.AI_SECRET_KEY) {
       return NextResponse.json(
         { error: 'Unauthorized AI access' },
@@ -15,23 +14,20 @@ export async function GET(req: Request) {
       );
     }
 
-    /* ---------------- PARAMS ---------------- */
+    /* -------- PARAM -------- */
     const { searchParams } = new URL(req.url);
-    const orderId =
-      searchParams.get('order_id') ||
-      searchParams.get('order_number');
+    const orderNumber = searchParams.get('order_id');
 
-    if (!orderId) {
+    if (!orderNumber) {
       return NextResponse.json(
-        { error: 'order_id or order_number required' },
+        { error: 'order_id required' },
         { status: 400 }
       );
     }
 
-    /* ---------------- SUPABASE ADMIN ---------------- */
+    /* -------- SUPABASE -------- */
     const supabase = createAdminClient();
 
-    /* ---------------- QUERY ---------------- */
     const { data, error } = await supabase
       .from('orders')
       .select(`
@@ -47,9 +43,7 @@ export async function GET(req: Request) {
         customer_phone,
         total
       `)
-      .or(
-        `id.eq.${orderId},order_number.eq.${orderId}`
-      )
+      .eq('order_number', orderNumber)
       .single();
 
     if (error || !data) {
@@ -59,24 +53,22 @@ export async function GET(req: Request) {
       );
     }
 
-    /* ---------------- RESPONSE ---------------- */
     return NextResponse.json({
       success: true,
       order: {
-        id: data.id,
         order_number: data.order_number,
         status: data.current_status || data.status,
         is_rto: data.is_rto,
         courier: data.courier,
         awb: data.awb,
-        created_at: data.created_at,
         customer_name: data.customer_name,
         customer_phone: data.customer_phone,
         total: data.total,
+        created_at: data.created_at,
       },
     });
-  } catch (err: any) {
-    console.error('AI /api/ai/orders error:', err);
+  } catch (err) {
+    console.error('AI orders error:', err);
     return NextResponse.json(
       { error: 'Internal Server Error' },
       { status: 500 }
