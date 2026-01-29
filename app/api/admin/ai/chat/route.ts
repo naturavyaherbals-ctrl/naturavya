@@ -1,124 +1,94 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const LLM_BASE_URL = process.env.LLM_BASE_URL; 
+const LLM_MODEL = process.env.LLM_MODEL;       
 
 export async function POST(req: NextRequest) {
   try {
-    if (!OPENAI_API_KEY) {
-      return NextResponse.json(
-        { success: false, error: 'OPENAI_API_KEY not set' },
-        { status: 500 }
-      );
-    }
-
     const supabase = await createServerSupabaseClient();
+    const adminSupabase = createAdminClient(); 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Auth
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const { data: profile } = await supabase.from('users').select('role, full_name').eq('id', user.id).single();
+    const userRole = profile?.role || 'agent';
+    const isAdmin = ['admin', 'super_admin'].includes(userRole);
 
-    if (authError || !user) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
+    const body = await req.json();
+    const messages = body.messages || [];
+    const query = messages[messages.length - 1]?.content?.toLowerCase() || "";
+
+    let context = "";
+
+    // 1. PRODUCT KNOWLEDGE RETRIEVAL
+    // Agar user kisi beemari ya product ke baare mein puche
+    if (query.includes('product') || query.includes('bech') || query.includes('dawa') || query.includes('benefit') || query.includes('dosage')) {
+      const { data: products } = await adminSupabase
+        .from('products')
+        .select('name, tagline, short_description, benefits, ingredients, dosage, price')
+        .eq('is_active', true)
+        .limit(5);
+      
+      context += `\nNATURAVYA PRODUCT CATALOG: ${JSON.stringify(products)}`;
     }
 
-    const body = await req.json().catch(() => ({}));
-    const messages = (body.messages || []) as { role: string; content: string }[];
-    const leadId = body.lead_id as string | undefined;
-
-    if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'No messages' },
-        { status: 400 }
-      );
+    // 2. LEAD & ORDER AUDIT (Mentioned a name?)
+    const words = query.split(' ').filter(w => w.length > 2);
+    let foundLead: any = null;
+    for (const word of words) {
+      const { data: lead } = await adminSupabase.from('leads').select('*').ilike('full_name', `%${word}%`).limit(1).maybeSingle();
+      if (lead) { foundLead = lead; break; }
     }
 
-    // Optional: pull a lead for context
-    let leadContext: any = null;
-    if (leadId) {
-      const { data: lead } = await supabase
-        .from('leads')
-        .select(
-          'id, full_name, phone, city, state, source, campaign_name, source_campaign, status, temperature, score, notes'
-        )
-        .eq('id', leadId)
-        .single();
-      if (lead) leadContext = lead;
+    if (foundLead) {
+      const { data: orders } = await adminSupabase.from('orders').select('order_number, status, total').or(`phone.eq.${foundLead.phone},customer_phone.eq.${foundLead.phone}`).limit(3);
+      context += `\nCUSTOMER CONTEXT (${foundLead.full_name}): Status ${foundLead.status}, Score ${foundLead.score}. Orders: ${JSON.stringify(orders)}`;
     }
 
+    // 3. ADS & TEAM PERFORMANCE (Admin only)
+    if (isAdmin && (query.includes('ad') || query.includes('scale') || query.includes('performance'))) {
+      const { data: ads } = await adminSupabase.from('lead_ads_performance_v').select('*').limit(3);
+      context += `\nBUSINESS DATA: ${JSON.stringify(ads)}`;
+    }
+
+    // 4. THE NATURAVYA EXPERT PROMPT
     const systemPrompt = `
-You are an internal sales assistant for Naturavya, an Ayurvedic D2C brand in India.
+Tu "Naturavya Sales Brain" hai. Tera kaam staff ko expert banana hai.
+Language: Strictly Roman Hinglish.
 
-You are used by call center agents and admins INSIDE the Naturavya CRM.
+KNOWLEDGE RULES:
+- Product Pitch: Agar koi product ke baare mein puche, toh context se uska "tagline" aur "benefits" batao.
+- Dosage: Hamesha customer ko batao product kaise lena hai (Dosage field use kar).
+- Trust: Pitch karo ki Naturavya 100% pure Ayurveda hai aur hamare products lab-certified hain.
+- Sales: Hamesha agent ko bolo address double-check karein aur ₹1 link se COD verify karein.
 
-Goals:
-- Help agents close orders (especially COD), reduce RTO, and manage follow-ups.
-- Give concrete call scripts in simple Hinglish (Latin script).
-- Help interpret lead details, statuses, and ads performance, but do NOT invent data that is not passed.
-- When asked about process, be practical and step-by-step.
-- Never share internal API keys or code.
+LIVE DATABASE DATA:
+${context || "No specific data found. Answer as Naturavya specialist."}
+`.trim();
 
-If lead context is provided, use it. If not, answer generally for Naturavya.
-
-Always respond in concise Hinglish (Roman script), easy for Indian phone agents to read.
-    `.trim();
-
-    const contextBlock = leadContext
-      ? `Current lead:\n${JSON.stringify(leadContext, null, 2)}`
-      : 'No specific lead passed. Answer generally for Naturavya sales team.';
-
-    const userAugmentedMessages = [
-      {
-        role: 'system',
-        content: systemPrompt,
-      },
-      {
-        role: 'system',
-        content: contextBlock,
-      },
-      ...messages,
-    ];
-
-    const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+    // 5. CALL VPS
+    const llmRes = await fetch(`${LLM_BASE_URL}/chat/completions`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'gpt-4.1-mini',
-        messages: userAugmentedMessages,
-        temperature: 0.6,
+        model: LLM_MODEL,
+        messages: [{ role: 'system', content: systemPrompt }, ...messages],
+        temperature: 0.2,
+        max_tokens: 600,
       }),
     });
 
-    if (!openaiRes.ok) {
-      const txt = await openaiRes.text();
-      console.error('AI chat error:', txt);
-      return NextResponse.json(
-        { success: false, error: 'AI API error' },
-        { status: 500 }
-      );
-    }
-
-    const openaiJson: any = await openaiRes.json();
-    const reply =
-      openaiJson.choices?.[0]?.message?.content ||
-      'Sorry, AI reply not available right now.';
+    const llmJson = await llmRes.json();
+    const reply = llmJson.choices?.[0]?.message?.content || "Naturavya Brain thinking... please retry.";
 
     return NextResponse.json({ success: true, reply });
-  } catch (err: any) {
-    console.error('POST /api/admin/ai/chat error:', err);
-    return NextResponse.json(
-      { success: false, error: err.message || 'Internal Server Error' },
-      { status: 500 }
-    );
+
+  } catch (error: any) {
+    console.error('Master AI Error:', error);
+    return NextResponse.json({ success: false, reply: "Brain offline hai. VPS check karein." }, { status: 500 });
   }
 }
