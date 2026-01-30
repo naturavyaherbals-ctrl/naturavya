@@ -1,3 +1,6 @@
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from 'next/server';
 import { createAutoTask } from '@/lib/tasks/auto-create-task';
 import { createClient } from '@supabase/supabase-js';

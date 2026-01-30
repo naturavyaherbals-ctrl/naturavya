@@ -2,6 +2,9 @@
 // MANAGER DASHBOARD STATS API
 // =====================================================
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
