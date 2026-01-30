@@ -1,67 +1,172 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { shiprocket } from '@/lib/services/shiprocket-full';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    // Only allow admin/super_admin
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user?.id)
+    const payload = await req.json();
+    const supabase = createClient();
+
+    const {
+      awb,
+      shipment_status,
+      shipment_status_id,
+      current_status,
+      current_timestamp,
+      scans,
+    } = payload;
+
+    if (!awb) {
+      return NextResponse.json(
+        { success: false, error: 'AWB missing' },
+        { status: 400 }
+      );
+    }
+
+    /* ===============================
+       FIND ORDER BY AWB
+    ================================ */
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('awb_number', awb.toString())
       .single();
 
-    if (!['admin', 'super_admin'].includes(profile?.role || '')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (orderError || !order) {
+      return NextResponse.json(
+        { success: false, error: 'Order not found for AWB' },
+        { status: 200 } // Shiprocket expects 200
+      );
     }
 
-    const body = await req.json();
-    const { action, ...data } = body;
+    /* ===============================
+       PREPARE ORDER UPDATE
+    ================================ */
+    const updates: any = {
+      status_updated_at: new Date().toISOString(),
+      auto_actions: payload,
+    };
 
-    let result;
+    const statusText =
+      shipment_status ||
+      current_status ||
+      payload.shipment_status ||
+      '';
 
-    switch (action) {
-      case 'check_serviceability':
-        result = await shiprocket.checkServiceability(data.pickup, data.delivery, data.weight, data.cod);
-        break;
-      case 'create_order':
-        result = await shiprocket.createOrder(data.order);
-        break;
-      case 'assign_awb':
-        result = await shiprocket.assignAWB(data.shipment_id, data.courier_id);
-        break;
-      case 'request_pickup':
-        result = await shiprocket.requestPickup(data.shipment_id);
-        break;
-      case 'generate_manifest':
-        result = await shiprocket.generateManifest(data.shipment_id);
-        break;
-      case 'print_manifest':
-        result = await shiprocket.printManifest(data.order_ids);
-        break;
-      case 'generate_label':
-        result = await shiprocket.generateLabel(data.shipment_id);
-        break;
-      case 'print_invoice':
-        result = await shiprocket.printInvoice(data.order_ids);
-        break;
-      case 'track':
-        result = await shiprocket.trackAWB(data.awb);
-        break;
-      case 'get_orders':
-        result = await shiprocket.getOrders(data.page);
-        break;
-      default:
-        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+    const statusLower = statusText.toLowerCase();
+
+    /* ===============================
+       STATUS MAPPING
+    ================================ */
+    if (statusLower.includes('delivered')) {
+      updates.current_status = 'delivered';
+      updates.delivered_at = new Date().toISOString();
     }
 
-    return NextResponse.json(result);
+    if (statusLower.includes('out for delivery')) {
+      updates.current_status = 'out_for_delivery';
+    }
 
-  } catch (error: any) {
-    console.error('Shiprocket API Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    if (
+      statusLower.includes('ndr') ||
+      statusLower.includes('not delivered')
+    ) {
+      updates.current_status = 'ndr';
+      updates.ndr_count = (order.ndr_count || 0) + 1;
+      updates.ndr_reason =
+        scans?.[0]?.activity || 'Non-delivery reported';
+    }
+
+    if (statusLower.includes('rto')) {
+      updates.is_rto = true;
+      updates.current_status = 'rto';
+      updates.rto_initiated_at = new Date().toISOString();
+    }
+
+    /* ===============================
+       UPDATE ORDER
+    ================================ */
+    await supabase
+      .from('orders')
+      .update(updates)
+      .eq('id', order.id);
+
+    /* ===============================
+       TASK ENGINE
+    ================================ */
+    const createTask = async (
+      title: string,
+      priority: 'low' | 'medium' | 'high'
+    ) => {
+      // Prevent duplicate pending task of same type
+      const { data: existing } = await supabase
+        .from('tasks')
+        .select('id')
+        .eq('related_order_id', order.id)
+        .eq('title', title)
+        .eq('status', 'pending')
+        .limit(1);
+
+      if (existing && existing.length > 0) return;
+
+      await supabase.from('tasks').insert({
+        title,
+        priority,
+        status: 'pending',
+        related_order_id: order.id,
+        related_lead_id: order.lead_id || null,
+        assigned_to: order.assigned_to || null,
+        meta: {
+          awb,
+          shiprocket_status: statusText,
+        },
+      });
+    };
+
+    /* ===============================
+       TASK RULES
+    ================================ */
+    if (statusLower.includes('out for delivery')) {
+      await createTask(
+        'Inform customer: Out for delivery',
+        'medium'
+      );
+    }
+
+    if (
+      statusLower.includes('ndr') ||
+      statusLower.includes('not delivered')
+    ) {
+      await createTask(
+        'NDR: Call customer & reattempt delivery',
+        'high'
+      );
+    }
+
+    if (statusLower.includes('delivered')) {
+      // Auto-close all pending tasks for this order
+      await supabase
+        .from('tasks')
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+        })
+        .eq('related_order_id', order.id)
+        .eq('status', 'pending');
+    }
+
+    if (statusLower.includes('rto')) {
+      await createTask(
+        'RTO: Investigate & recovery action',
+        'high'
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Shiprocket webhook error:', error);
+    return NextResponse.json(
+      { success: false },
+      { status: 200 } // IMPORTANT: always 200 for Shiprocket
+    );
   }
 }

@@ -1,5 +1,3 @@
-export const runtime = 'nodejs';
-
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
@@ -36,17 +34,18 @@ export async function GET(req: Request) {
         status,
         current_status,
         is_rto,
-        courier,
-        awb,
+        courier_name,
+        awb_number,
         created_at,
         customer_name,
         customer_phone,
         total
       `)
       .eq('order_number', orderNumber)
-      .single();
+      .maybeSingle();
+      console.log('AI ORDER QUERY:', orderNumber, data, error);
 
-    if (error || !data) {
+    if (error || !data) {maybe
       return NextResponse.json(
         { error: 'Order not found' },
         { status: 404 }
@@ -59,8 +58,8 @@ export async function GET(req: Request) {
         order_number: data.order_number,
         status: data.current_status || data.status,
         is_rto: data.is_rto,
-        courier: data.courier,
-        awb: data.awb,
+        courier: data.courier_name,
+        awb: data.awb_number,
         customer_name: data.customer_name,
         customer_phone: data.customer_phone,
         total: data.total,
